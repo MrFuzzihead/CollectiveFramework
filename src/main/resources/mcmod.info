@@ -1,21 +1,25 @@
 {
   "modListVersion": 2,
   "modList": [{
-    "modid": "theframework",
-    "name": "The Framework",
+    "modid": "${modId}",
+    "name": "${modName}",
     "description": "A Minecraft Mod Framework",
-    "version": "${version}",
-    "mcversion": "${mcversion}",
-    "url": "https://github.com/rolandoislas/TheFramework",
-    "updateUrl": "",
-    "authorList": ["austinv11", "rolandoislas"],
+    "version": "${modVersion}",
+    "mcversion": "${minecraftVersion}",
+    "url": "https://github.com/MrFuzzihead/CollectiveFramework",
+    "updateUrl": "https://github.com/MrFuzzihead/CollectiveFramework/releases/latest",
+    "authorList": [
+      "MrFuzzihead",
+      "austinv11",
+      "rolandoislas"],
     "credits": "Original Collective Framework by austinv11",
     "logoFile": "",
     "screenshots": [],
     "parent": "",
-    "requiredMods": ["Forge"],
+    "requiredMods": [],
     "dependencies": [],
     "dependants": [],
     "useDependencyInformation": false
   }]
 }
+

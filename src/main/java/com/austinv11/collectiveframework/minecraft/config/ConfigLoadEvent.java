@@ -10,30 +10,30 @@ import cpw.mods.fml.common.eventhandler.Event;
  * NOTE: This is called on the MinecraftForge event bus
  */
 public class ConfigLoadEvent extends Event {
-	
-	/**
-	 * The name of the config file
-	 */
-	public String configName;
-	/**
-	 * The contents of the config
-	 */
-	public String config;
-	/**
-	 * Whether the event is being called to revert server changes
-	 */
-	public boolean isRevert;
-	
-	@Cancelable
-	public static class Pre extends ConfigLoadEvent {
-		
-	}
-	
-	public static class Post extends ConfigLoadEvent {
-		
-	}
-	
-	public static class Init extends ConfigLoadEvent {
-		
-	}
+
+    /**
+     * The name of the config file
+     */
+    public String configName;
+    /**
+     * The contents of the config
+     */
+    public String config;
+    /**
+     * Whether the event is being called to revert server changes
+     */
+    public boolean isRevert;
+
+    @Cancelable
+    public static class Pre extends ConfigLoadEvent {
+
+    }
+
+    public static class Post extends ConfigLoadEvent {
+
+    }
+
+    public static class Init extends ConfigLoadEvent {
+
+    }
 }

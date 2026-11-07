@@ -5,15 +5,15 @@ package com.austinv11.collectiveframework.minecraft.config;
  */
 public class ConfigException extends Exception {
 
-	public ConfigException(String message) {
-		super(message);
-	}
+    public ConfigException(String message) {
+        super(message);
+    }
 
-	public ConfigException(Exception e) {
-		super(e);
-	}
+    public ConfigException(Exception e) {
+        super(e);
+    }
 
-	public ConfigException() {
-		super();
-	}
+    public ConfigException() {
+        super();
+    }
 }

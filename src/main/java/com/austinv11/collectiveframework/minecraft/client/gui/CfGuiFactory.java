@@ -1,27 +1,24 @@
 package com.austinv11.collectiveframework.minecraft.client.gui;
 
-import com.austinv11.collectiveframework.minecraft.CollectiveFramework;
-import com.austinv11.collectiveframework.minecraft.config.ConfigException;
-import com.austinv11.collectiveframework.minecraft.config.ConfigRegistry;
-import com.austinv11.collectiveframework.minecraft.reference.Config;
-import cpw.mods.fml.client.config.GuiConfig;
-import cpw.mods.fml.client.config.IConfigElement;
-import net.minecraft.client.gui.GuiScreen;
-
 import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.client.gui.GuiScreen;
+
+import com.austinv11.collectiveframework.minecraft.CollectiveFramework;
+import com.austinv11.collectiveframework.minecraft.config.ConfigException;
+import com.austinv11.collectiveframework.minecraft.config.ConfigRegistry;
+
+import cpw.mods.fml.client.config.IConfigElement;
+
 public class CfGuiFactory {
+
     public static class GuiConfig extends cpw.mods.fml.client.config.GuiConfig {
+
         private Object config;
 
         GuiConfig(GuiScreen parentScreen, String modid, String title, Object config) {
-            super(parentScreen,
-                    getCategories(config, modid),
-                    modid,
-                    false,
-                    false,
-                    title);
+            super(parentScreen, getCategories(config, modid), modid, false, false, title);
             titleLine2 = ConfigRegistry.getFilePath(config);
             this.config = config;
         }
