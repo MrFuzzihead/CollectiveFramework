@@ -14,30 +14,35 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Config {
-	
-	/**
-	 * If preferred, the custom file name, otherwise it uses the class name
-	 * @return The file name (include the extension)
-	 */
-	String fileName() default "@NULL@";
-	
-	/**
-	 * Used to get a list of fields that you want ignored
-	 * @return The fields to ignore
-	 */
-	String[] exclude() default {};
-	
-	/**
-	 * Class for a custom config handler, it must implement {@link com.austinv11.collectiveframework.minecraft.config.IConfigurationHandler}
-	 * @return The class name
-	 */
-	String handler() default "com.austinv11.collectiveframework.minecraft.config.ConfigRegistry$DefaultConfigurationHandler";
-	
-	/**
-	 * Whether configs should be synced between server to client.
-	 * Note: You could configure this by subscribing to the {@link ConfigLoadEvent}, 
-	 * cancelling {@link ConfigLoadEvent.Pre} will prevent syncing 
-	 * @return True to enable syncing
-	 */
-	boolean doesSync() default true;
+
+    /**
+     * If preferred, the custom file name, otherwise it uses the class name
+     * 
+     * @return The file name (include the extension)
+     */
+    String fileName() default "@NULL@";
+
+    /**
+     * Used to get a list of fields that you want ignored
+     * 
+     * @return The fields to ignore
+     */
+    String[] exclude() default {};
+
+    /**
+     * Class for a custom config handler, it must implement
+     * {@link com.austinv11.collectiveframework.minecraft.config.IConfigurationHandler}
+     * 
+     * @return The class name
+     */
+    String handler() default "com.austinv11.collectiveframework.minecraft.config.ConfigRegistry$DefaultConfigurationHandler";
+
+    /**
+     * Whether configs should be synced between server to client.
+     * Note: You could configure this by subscribing to the {@link ConfigLoadEvent},
+     * cancelling {@link ConfigLoadEvent.Pre} will prevent syncing
+     * 
+     * @return True to enable syncing
+     */
+    boolean doesSync() default true;
 }
