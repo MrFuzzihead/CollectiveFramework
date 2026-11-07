@@ -1,6 +1,12 @@
 package com.austinv11.collectiveframework.utils;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.jar.JarEntry;
@@ -15,7 +21,7 @@ public class FileUtils {
 
     /**
      * Simple method to write to a file
-     * 
+     *
      * @param file   File to write to
      * @param string String to write
      * @throws IOException
@@ -29,7 +35,7 @@ public class FileUtils {
 
     /**
      * Simple method to read all the contents of a file
-     * 
+     *
      * @param file File to read
      * @return The contents
      * @throws IOException
@@ -44,7 +50,7 @@ public class FileUtils {
 
     /**
      * Unzips a given file to the set directory
-     * 
+     *
      * @param file        The file to unzip
      * @param toDirectory The directory to unzip to
      * @throws IOException
@@ -72,7 +78,7 @@ public class FileUtils {
 
     /**
      * Gets a list of classes from a jar file
-     * 
+     *
      * @param file The jar file
      * @return The classes
      * @throws IOException

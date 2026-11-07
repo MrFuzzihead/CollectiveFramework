@@ -3,7 +3,12 @@ package com.austinv11.collectiveframework.multithreading;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import com.austinv11.collectiveframework.utils.ReflectionUtils;
 
@@ -23,7 +28,7 @@ public class HeavyCalculations {
 
     /**
      * Constructor for HeavyCalculations
-     * 
+     *
      * @param numberOfThreads The number of threads to delegate calculations to
      */
     public HeavyCalculations(int numberOfThreads) {
@@ -51,7 +56,7 @@ public class HeavyCalculations {
 
     /**
      * Adds a calculation to the queues
-     * 
+     *
      * @param calculation The calculation it MUST implement {@link ICalculations}
      * @return A future representing the eventual calculation {@link Future#get()} returns the object passed,
      *         although after the calculations finished
@@ -68,7 +73,7 @@ public class HeavyCalculations {
      * Adds a calculation to the queues by wrapping an object to implement {@link ICalculations}
      * <b>This method is discouraged! It is meant for objects where it isn't possible to implement
      * {@link ICalculations}</b>
-     * 
+     *
      * @param calculation       The object representing the calculations
      * @param methodToCalculate The method to call for calculations
      * @param params            The parameters for the method
@@ -88,7 +93,7 @@ public class HeavyCalculations {
      * when the class can't be instantiated
      * <b>This method is discouraged! It is meant for objects where it isn't possible to implement
      * {@link ICalculations}</b>
-     * 
+     *
      * @param calculationClass  The class representing the calculations
      * @param methodToCalculate The method to call for calculations
      * @param params            The parameters for the method
@@ -113,7 +118,7 @@ public class HeavyCalculations {
 
     /**
      * Use this to check if you could add calculations
-     * 
+     *
      * @return True if this is dead
      */
     public boolean isDead() {

@@ -1,5 +1,6 @@
 package com.austinv11.collectiveframework.minecraft.entities;
 
+import java.util.Arrays;
 import java.util.List;
 
 import net.minecraft.entity.Entity;
@@ -12,8 +13,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
 
 import com.austinv11.collectiveframework.minecraft.tiles.TileEntityInventory;
-
-import scala.actors.threadpool.Arrays;
 
 /**
  * An entity implementation with an inventory

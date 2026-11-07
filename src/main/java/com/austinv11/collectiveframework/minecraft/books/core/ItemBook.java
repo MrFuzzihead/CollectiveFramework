@@ -20,7 +20,7 @@ public abstract class ItemBook extends ItemBase {
 
     /**
      * Used to retrieve the data for the book, the book will be instantiated on use
-     * 
+     *
      * @return The book class
      */
     public abstract Class<? extends Book> getBook();
@@ -33,7 +33,7 @@ public abstract class ItemBook extends ItemBase {
 
     /**
      * Opens the book gui, they MUST be holding this book
-     * 
+     *
      * @param player The player to open the gui for
      */
     public void openBook(EntityPlayer player) {

@@ -21,14 +21,14 @@ public abstract class ItemBase extends Item {
 
     /**
      * Gets the creative tab this item belongs to
-     * 
+     *
      * @return The tab (it can be null)
      */
     public abstract CreativeTabs getTab();
 
     /**
      * Gets the modid to which the block is associated to
-     * 
+     *
      * @return The modid
      */
     public abstract String getModId();

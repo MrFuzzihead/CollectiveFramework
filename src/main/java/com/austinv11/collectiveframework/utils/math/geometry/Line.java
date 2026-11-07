@@ -15,7 +15,7 @@ public class Line {
 
     /**
      * Two dimensional constructor for a line
-     * 
+     *
      * @param startCoord Start coord of the line
      * @param endCoord   End coord of the line
      */
@@ -25,7 +25,7 @@ public class Line {
 
     /**
      * Three dimensional constructor for a line
-     * 
+     *
      * @param startCoord Start coord of the line
      * @param endCoord   End coord of the line
      */
@@ -36,7 +36,7 @@ public class Line {
 
     /**
      * Gets the starting x coordinate of the line
-     * 
+     *
      * @return The x coordinate
      */
     public double getStartX() {
@@ -45,7 +45,7 @@ public class Line {
 
     /**
      * Gets the starting y coordinate of the line
-     * 
+     *
      * @return The y coordinate
      */
     public double getStartY() {
@@ -54,7 +54,7 @@ public class Line {
 
     /**
      * Gets the starting z coordinate of the line
-     * 
+     *
      * @return The z coordinate
      */
     public double getStartZ() {
@@ -63,7 +63,7 @@ public class Line {
 
     /**
      * Gets the ending x coordinate of the line
-     * 
+     *
      * @return The x coordinate
      */
     public double getEndX() {
@@ -72,7 +72,7 @@ public class Line {
 
     /**
      * Gets the ending y coordinate of the line
-     * 
+     *
      * @return The y coordinate
      */
     public double getEndY() {
@@ -81,7 +81,7 @@ public class Line {
 
     /**
      * Gets the ending z coordinate of the line
-     * 
+     *
      * @return The z coordinate
      */
     public double getEndZ() {
@@ -90,7 +90,7 @@ public class Line {
 
     /**
      * Gets the 2D starting point for the line
-     * 
+     *
      * @return The point
      */
     public TwoDimensionalVector get2DStart() {
@@ -99,7 +99,7 @@ public class Line {
 
     /**
      * Gets the 2D ending point for the line
-     * 
+     *
      * @return The point
      */
     public TwoDimensionalVector get2DEnd() {
@@ -108,7 +108,7 @@ public class Line {
 
     /**
      * Gets the 3D starting point for the line
-     * 
+     *
      * @return The point
      */
     public ThreeDimensionalVector get3DStart() {
@@ -117,7 +117,7 @@ public class Line {
 
     /**
      * Gets the 3D ending point for the line
-     * 
+     *
      * @return The point
      */
     public ThreeDimensionalVector get3DEnd() {
@@ -126,7 +126,7 @@ public class Line {
 
     /**
      * Gets the 2D slope for the line
-     * 
+     *
      * @return The slope or NaN if it is undefined
      */
     public double get2DSlope() {
@@ -144,7 +144,7 @@ public class Line {
 
     /**
      * Plugs in the given x coordinate to the line to calculate a 2D point from its equation
-     * 
+     *
      * @param x The x coordinate
      * @return The calculated coordinate. NOTE: y will be the minimum y-value of the line if the slope of the line is
      *         undefined
@@ -155,7 +155,7 @@ public class Line {
 
     /**
      * Checks if the point is valid on a 2D plane
-     * 
+     *
      * @param coord The coord to check
      * @return If it's on the line
      */
@@ -169,7 +169,7 @@ public class Line {
 
     /**
      * Returns all points with whole number x values on the line
-     * 
+     *
      * @return The points
      */
     public List<TwoDimensionalVector> getAll2DPoints() {
@@ -215,7 +215,7 @@ public class Line {
 
     /**
      * Plugs in the given x coordinate to the line to calculate a 3D point from its equation
-     * 
+     *
      * @param x The x coordinate
      * @return The calculated coordinate
      */
@@ -228,7 +228,7 @@ public class Line {
 
     /**
      * Checks if the point is valid on a 3D plane
-     * 
+     *
      * @param coord The coord to check
      * @return If it's on the line
      */
@@ -248,7 +248,7 @@ public class Line {
 
     /**
      * Returns all points with whole number x values on the line
-     * 
+     *
      * @return The points
      */
     public List<ThreeDimensionalVector> getAll3DPoints() {
@@ -296,7 +296,7 @@ public class Line {
 
     /**
      * Gets the length of the line
-     * 
+     *
      * @return The length
      */
     public double getLength() {
@@ -305,7 +305,7 @@ public class Line {
 
     /**
      * Creates a new line as a copy of this line but with the set start coord
-     * 
+     *
      * @param coord The new start coord
      * @return The new, modified line
      */
@@ -315,7 +315,7 @@ public class Line {
 
     /**
      * Creates a new line as a copy of this line but with the set start coord
-     * 
+     *
      * @param coord The new start coord
      * @return The new, modified line
      */
@@ -325,7 +325,7 @@ public class Line {
 
     /**
      * Creates a new line as a copy of this line but with the set end coord
-     * 
+     *
      * @param coord The new end coord
      * @return The new, modified line
      */
@@ -335,7 +335,7 @@ public class Line {
 
     /**
      * Creates a new line as a copy of this line but with the set end coord
-     * 
+     *
      * @param coord The new end coord
      * @return The new, modified line
      */
@@ -345,7 +345,7 @@ public class Line {
 
     /**
      * Rotates the line around a point
-     * 
+     *
      * @param point The point to rotate around
      * @param angle The angle to rotate by
      * @return The new line
@@ -360,7 +360,7 @@ public class Line {
 
     /**
      * Rotates the line about the origin
-     * 
+     *
      * @param angle The angle to rotate by
      * @return The new line
      */
@@ -370,7 +370,7 @@ public class Line {
 
     /**
      * Rotates the line across the x-axis around a point
-     * 
+     *
      * @param point The point to rotate around
      * @param angle The angle to rotate by
      * @return The new line
@@ -383,7 +383,7 @@ public class Line {
 
     /**
      * Rotates the line across the x-axis about the origin
-     * 
+     *
      * @param angle The angle to rotate by
      * @return The new line
      */
@@ -393,7 +393,7 @@ public class Line {
 
     /**
      * Rotates the line across the y-axis around a point
-     * 
+     *
      * @param point The point to rotate around
      * @param angle The angle to rotate by
      * @return The new line
@@ -406,7 +406,7 @@ public class Line {
 
     /**
      * Rotates the line across the y-axis about the origin
-     * 
+     *
      * @param angle The angle to rotate by
      * @return The new line
      */
@@ -416,7 +416,7 @@ public class Line {
 
     /**
      * Rotates the line across the z-axis around a point
-     * 
+     *
      * @param point The point to rotate around
      * @param angle The angle to rotate by
      * @return The new line
@@ -429,7 +429,7 @@ public class Line {
 
     /**
      * Rotates the line across the z-axis about the origin
-     * 
+     *
      * @param angle The angle to rotate by
      * @return The new line
      */

@@ -29,7 +29,7 @@ public class TranslationManager {
 
     /**
      * Register a translation provider, note: the earlier the registration, the higher priority it has
-     * 
+     *
      * @param provider The translation provider
      */
     public static void registerTranslationProvider(ITranslationProvider provider) {
@@ -38,7 +38,7 @@ public class TranslationManager {
 
     /**
      * Translates a given text (either from the unlocalized key or from standard text)
-     * 
+     *
      * @param text   String to translate
      * @param toLang Language to translate to
      * @return The translated text
@@ -71,7 +71,7 @@ public class TranslationManager {
 
     /**
      * Translates a given text (either from the unlocalized key or from standard text)
-     * 
+     *
      * @param text     String to translate
      * @param fromLang Language the string is from
      * @param toLang   Language to translate to
@@ -104,7 +104,7 @@ public class TranslationManager {
 
     /**
      * Method which attempts to detect the language of the given string
-     * 
+     *
      * @param text String to detect the language for
      * @return Language code
      * @throws TranslationException

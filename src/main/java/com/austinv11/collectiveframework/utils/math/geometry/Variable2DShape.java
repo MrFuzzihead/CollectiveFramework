@@ -17,7 +17,7 @@ public class Variable2DShape {
 
     /**
      * Constructor for a 2D shape
-     * 
+     *
      * @param vectors The vectors to form the shape with
      * @throws IncompatibleDimensionsException
      */
@@ -33,7 +33,7 @@ public class Variable2DShape {
 
     /**
      * Constructor for a 2D shape
-     * 
+     *
      * @param lines The lines to form the shape with
      * @throws IncompatibleDimensionsException
      */
@@ -53,7 +53,7 @@ public class Variable2DShape {
 
     /**
      * Gets the number of sides for this shape
-     * 
+     *
      * @return The number of sides
      */
     public int getNumberOfSides() {
@@ -62,7 +62,7 @@ public class Variable2DShape {
 
     /**
      * Retrieves all points representing vertices on the shape
-     * 
+     *
      * @return The vertices
      */
     public TwoDimensionalVector[] getVertices() {
@@ -77,7 +77,7 @@ public class Variable2DShape {
 
     /**
      * Gets the perimeter of the shape
-     * 
+     *
      * @return The perimeter
      */
     public double getPerimeter() {
@@ -88,7 +88,7 @@ public class Variable2DShape {
 
     /**
      * Calculates the area of the shape
-     * 
+     *
      * @return The area
      */
     public double getArea() {
@@ -106,7 +106,7 @@ public class Variable2DShape {
     /**
      * Creates an array of sides from the shape where the side touches the given coord
      * This should only ever return 0-2 lines
-     * 
+     *
      * @param coord The coordinate point
      * @return The sides
      */
@@ -118,7 +118,7 @@ public class Variable2DShape {
 
     /**
      * Finds the (internal) angle of the given vertex
-     * 
+     *
      * @param vertex The vertex
      * @return The angle
      * @throws IncompatibleDimensionsException
@@ -133,7 +133,7 @@ public class Variable2DShape {
 
     /**
      * Gets the lines representing the sides of the shape
-     * 
+     *
      * @return The sides
      */
     public Line[] getSides() {
@@ -142,7 +142,7 @@ public class Variable2DShape {
 
     /**
      * Calculates the approximate center of the polygon
-     * 
+     *
      * @return The center coordinates
      */
     public TwoDimensionalVector getCentroid() {
@@ -160,7 +160,7 @@ public class Variable2DShape {
 
     /**
      * Translates the whole shape to make a new shape with a matching centroid
-     * 
+     *
      * @param centroid New centroid
      * @return Modified shape
      */
@@ -182,7 +182,7 @@ public class Variable2DShape {
 
     /**
      * Rotates the shape around a point
-     * 
+     *
      * @param point The point to rotate around
      * @param angle The angle to rotate by
      * @return The new shape
@@ -201,7 +201,7 @@ public class Variable2DShape {
 
     /**
      * Rotates the shape about its centroid
-     * 
+     *
      * @param angle The angle to rotate by
      * @return The new shape
      */
@@ -211,7 +211,7 @@ public class Variable2DShape {
 
     /**
      * Checks if the provided point is on the shape's perimeter
-     * 
+     *
      * @param coord The point
      * @return If the point is on the perimeter
      */
@@ -223,7 +223,7 @@ public class Variable2DShape {
     /**
      * Checks if a point is inside the shape.
      * DO NOT TRUST THIS- it is not always accurate, it is only 100% accurate with rectangles
-     * 
+     *
      * @param coord The point
      * @return If the point is in the shape
      */
@@ -249,7 +249,7 @@ public class Variable2DShape {
     /**
      * Gets all the points in the shape (with whole number coords)
      * WARNING- Deprecated because it uses isPointValid
-     * 
+     *
      * @return The points
      */
     @Deprecated

@@ -18,7 +18,7 @@ public class WorldUtils {
 
     /**
      * Gets a player with the given username in the provided world
-     * 
+     *
      * @param playerName The player username
      * @param world      The world
      * @return The player, or null if the player wasn't found
@@ -29,7 +29,7 @@ public class WorldUtils {
 
     /**
      * Gets the world for the provided dimension id
-     * 
+     *
      * @param id The dimension id
      * @return The world
      */
@@ -40,7 +40,7 @@ public class WorldUtils {
 
     /**
      * Gets the nearest entity within a range of a location
-     * 
+     *
      * @param location The location to search from
      * @param maxRange The max range to find entities from
      * @return The nearest entity or null if none were found
@@ -64,7 +64,7 @@ public class WorldUtils {
 
     /**
      * Gets the nearest entity within the recommended max range of a location
-     * 
+     *
      * @param location The location to search from
      * @return The nearest entity or null if none were found
      */
@@ -74,7 +74,7 @@ public class WorldUtils {
 
     /**
      * Spawns an item in the world at the specified location
-     * 
+     *
      * @param location The location for the item to be spawned
      * @param stack    The item to spawn
      * @return The entity representing the item
@@ -88,7 +88,7 @@ public class WorldUtils {
 
     /**
      * Checks if the provided block type exists in the specified location
-     * 
+     *
      * @param location   The location to check
      * @param blockClass The class of the block to look for
      * @return True if the block exists, false if otherwise

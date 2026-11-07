@@ -28,7 +28,7 @@ public abstract class TileEntityInventory extends TileEntity implements IInvento
 
     /**
      * This represents how many slots are in the inventory
-     * 
+     *
      * @return The number of slots
      */
     public abstract int getSize();

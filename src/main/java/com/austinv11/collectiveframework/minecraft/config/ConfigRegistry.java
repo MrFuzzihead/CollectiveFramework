@@ -1,8 +1,19 @@
 package com.austinv11.collectiveframework.minecraft.config;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.StringReader;
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,7 +47,7 @@ public class ConfigRegistry {
 
     /**
      * Registers a config with the registry
-     * 
+     *
      * @param config The config to register
      * @throws ConfigException
      */
@@ -57,7 +68,7 @@ public class ConfigRegistry {
 
     /**
      * Registers a config proxy
-     * 
+     *
      * @param proxy The config proxy
      */
     public static void registerConfigProxy(IConfigProxy proxy) {
@@ -85,7 +96,7 @@ public class ConfigRegistry {
 
     /**
      * Gets the key for the passed object
-     * 
+     *
      * @param o The object
      * @return The key
      */
@@ -96,7 +107,7 @@ public class ConfigRegistry {
 
     /**
      * Serializes the passed object into a string
-     * 
+     *
      * @param o The object to serialize
      * @return The serialized string
      * @throws ConfigException
@@ -108,7 +119,7 @@ public class ConfigRegistry {
 
     /**
      * Deserializes the passed string with the passed key
-     * 
+     *
      * @param key    The key representing the object type
      * @param string The serialized string
      * @return The deserialized object
@@ -121,7 +132,7 @@ public class ConfigRegistry {
 
     /**
      * Returns a list of configuration elements for GUI configs
-     * 
+     *
      * @param configObject config instance
      * @param modid        mod id to use for lang entries
      * @return config element implementations
@@ -140,7 +151,7 @@ public class ConfigRegistry {
 
     /**
      * Parses config entries and updates the items in memory before saving to a file
-     * 
+     *
      * @param config  config object
      * @param entries entries to parse and save
      */
@@ -150,7 +161,7 @@ public class ConfigRegistry {
 
     /**
      * Returns the file path of a config
-     * 
+     *
      * @param config config object
      * @return filepath
      */
@@ -162,7 +173,7 @@ public class ConfigRegistry {
 
     /**
      * Convert the java type to the enum type expected by a config property
-     * 
+     *
      * @param o value object
      * @return Parsed type or string
      */

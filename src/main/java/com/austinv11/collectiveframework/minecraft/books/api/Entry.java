@@ -29,7 +29,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Default constructor, feel free to use a different one
-     * 
+     *
      * @param coords The coords of the entry
      * @param width  The width of the entry
      * @param height The height of the entry
@@ -44,7 +44,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Retrieves the current coords of the entry
-     * 
+     *
      * @return The coords
      */
     public TwoDimensionalVector getCoords() {
@@ -53,7 +53,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Changes the coords of the entry
-     * 
+     *
      * @param newCoords The new coords for the entry
      */
     public void setCoords(TwoDimensionalVector newCoords) {
@@ -62,7 +62,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Gets the pitch of the entry
-     * 
+     *
      * @return The pitch
      */
     public float getPitch() {
@@ -71,7 +71,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Gets the yaw of the entry
-     * 
+     *
      * @return The yaw
      */
     public float getYaw() {
@@ -80,7 +80,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Gets the rotation of the entry
-     * 
+     *
      * @return The rotation
      */
     public float getRotation() {
@@ -89,7 +89,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Sets the pitch of the entry
-     * 
+     *
      * @param pitch The pitch
      */
     public void setPitch(float pitch) {
@@ -98,7 +98,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Sets the yaw of the entry
-     * 
+     *
      * @param yaw The yaw
      */
     public void setYaw(float yaw) {
@@ -107,7 +107,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Sets the rotation of the entry
-     * 
+     *
      * @param rotation The rotation
      */
     public void setRotation(float rotation) {
@@ -116,7 +116,7 @@ public abstract class Entry extends GuiScreen {
 
     /**
      * Called when the entry is rendered
-     * 
+     *
      * @param dt The time since the last render of the current pass in milliseconds
      */
     @SideOnly(Side.CLIENT)

@@ -18,7 +18,7 @@ public class Modules {
 
     /**
      * Registers a module
-     * 
+     *
      * @param module The module to register
      */
     public static void registerModCompat(IModule module) {
@@ -45,7 +45,7 @@ public class Modules {
 
     /**
      * Propagates an FMLStateEvent to all modules
-     * 
+     *
      * @param event The event
      */
     public static void propagate(FMLStateEvent event) {

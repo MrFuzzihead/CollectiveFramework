@@ -1,6 +1,6 @@
 package com.austinv11.collectiveframework.minecraft.books.simple;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 

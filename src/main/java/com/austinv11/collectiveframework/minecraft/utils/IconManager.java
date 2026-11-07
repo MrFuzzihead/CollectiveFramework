@@ -27,7 +27,7 @@ public class IconManager {
 
     /**
      * Registers an object which requires icons to be registered
-     * 
+     *
      * @param iconNeeded The object
      */
     public static void register(IIconNeeded iconNeeded) {
@@ -47,7 +47,7 @@ public class IconManager {
 
         /**
          * Called to register icons
-         * 
+         *
          * @param register The icon register to register icons with
          */
         public void registerIcons(IIconRegister register);

@@ -53,7 +53,7 @@ public class GithubService {
 
     /**
      * Generates a changelog from the given sha
-     * 
+     *
      * @param sha The sha to start the changelog from
      * @return The changelog
      */
@@ -81,7 +81,7 @@ public class GithubService {
 
     /**
      * Generates a changelog
-     * 
+     *
      * @return The changelog
      */
     public String generateChangelog() {
@@ -90,7 +90,7 @@ public class GithubService {
 
     /**
      * Retrieves all the commits to the repo
-     * 
+     *
      * @param start The sha representing where to start listing commits from
      * @return The commits
      */
@@ -113,7 +113,7 @@ public class GithubService {
 
     /**
      * Retrieves all the commits to the repo
-     * 
+     *
      * @return The commits
      */
     public Commit[] getCommitsToRepo() {
@@ -122,7 +122,7 @@ public class GithubService {
 
     /**
      * Gets the commit with the corresponding sha
-     * 
+     *
      * @param sha The sha
      * @return The commit
      */
@@ -145,7 +145,7 @@ public class GithubService {
 
     /**
      * Reads the contents of the file at the given path relative to the repo
-     * 
+     *
      * @param path The path
      * @return The contents
      * @throws IOException
@@ -156,7 +156,7 @@ public class GithubService {
 
     /**
      * Constructs the url this service is directed at
-     * 
+     *
      * @param raw Whether to use the raw version of the url
      * @return The url
      */

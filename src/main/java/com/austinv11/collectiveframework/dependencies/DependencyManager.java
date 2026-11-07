@@ -11,7 +11,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.austinv11.collectiveframework.dependencies.download.*;
+import com.austinv11.collectiveframework.dependencies.download.BinaryProvider;
+import com.austinv11.collectiveframework.dependencies.download.FileType;
+import com.austinv11.collectiveframework.dependencies.download.IDownloadProvider;
+import com.austinv11.collectiveframework.dependencies.download.NoProviderFoundException;
+import com.austinv11.collectiveframework.dependencies.download.PlainTextProvider;
 import com.austinv11.collectiveframework.multithreading.SimpleRunnable;
 
 /**
@@ -30,7 +34,7 @@ public class DependencyManager {
 
     /**
      * Register a download provider, note: the earlier the registration, the higher priority it has
-     * 
+     *
      * @param provider The download provider
      */
     public static void registerDownloadProvider(IDownloadProvider provider) {
@@ -39,7 +43,7 @@ public class DependencyManager {
 
     /**
      * Attempts to load the specified library (must be a proper java archive!)
-     * 
+     *
      * @param file The file representing the library
      * @throws MalformedURLException
      */
@@ -52,7 +56,7 @@ public class DependencyManager {
 
     /**
      * Method to download a file of the given file type
-     * 
+     *
      * @param url            URL to download the file from
      * @param downloadPath   Path to download the file to
      * @param fileToDownload File type of the downlaod
@@ -73,7 +77,7 @@ public class DependencyManager {
 
     /**
      * An asynchronous method to download a file of the given file type
-     * 
+     *
      * @param url            URL to download the file from
      * @param downloadPath   Path to download the file to
      * @param fileToDownload File type of the downlaod

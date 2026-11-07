@@ -47,7 +47,7 @@ public class CurseVersionChecker {
 
     /**
      * This checks if an update is available
-     * 
+     *
      * @return True if an update is available
      */
     public boolean isUpdateAvailable() {
@@ -57,7 +57,7 @@ public class CurseVersionChecker {
 
     /**
      * Gets the direct url to the latest file
-     * 
+     *
      * @return The url
      */
     public String getDownloadUrl() {
@@ -67,7 +67,7 @@ public class CurseVersionChecker {
 
     /**
      * Gets the file name of the latest file
-     * 
+     *
      * @return The file name
      */
     public String getUpdateFileName() {
@@ -77,7 +77,7 @@ public class CurseVersionChecker {
 
     /**
      * Gets the curseforge project url
-     * 
+     *
      * @return The url
      */
     public String getProjectUrl() {

@@ -39,7 +39,7 @@ public class GuiUtils {
 
     /**
      * Closes the currently opened gui for the player if it matches the filter
-     * 
+     *
      * @param filter The gui filter
      */
     public static void closeCurrentGui(Class<? extends GuiScreen> filter) {
@@ -52,7 +52,7 @@ public class GuiUtils {
 
     /**
      * Retrieves an input stream for a resource location
-     * 
+     *
      * @param resourceLocation The resource location
      * @return The input stream
      * @throws IOException
@@ -66,7 +66,7 @@ public class GuiUtils {
 
     /**
      * Generates a scaled resolution object
-     * 
+     *
      * @return The resolution object
      */
     public static ScaledResolution getCurrentResolution() {

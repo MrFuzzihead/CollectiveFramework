@@ -1,6 +1,6 @@
 package com.austinv11.collectiveframework.minecraft.client.gui;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 import net.minecraft.client.Minecraft;

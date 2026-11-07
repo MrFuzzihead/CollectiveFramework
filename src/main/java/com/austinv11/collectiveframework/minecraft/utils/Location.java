@@ -28,7 +28,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Constructs a location object
-     * 
+     *
      * @param x     X coord
      * @param y     Y coord
      * @param z     Z coord
@@ -41,7 +41,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Constructs a location object at an entity's location
-     * 
+     *
      * @param entity The entity
      */
     public Location(Entity entity) {
@@ -50,7 +50,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Constructs a location object at a tile entity's location
-     * 
+     *
      * @param tileEntity The tile entity
      */
     public Location(TileEntity tileEntity) {
@@ -59,7 +59,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Clones a location object
-     * 
+     *
      * @param location The location to clone
      */
     public Location(Location location) {
@@ -68,7 +68,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Converts ChunkCoordinates to a location
-     * 
+     *
      * @param coords The coords
      * @param world  The world
      * @return The location equivalent
@@ -79,7 +79,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Converts the location into ChunkCoordinates
-     * 
+     *
      * @return The chunk coordinate equivalent
      */
     public ChunkCoordinates chunkCoordsFromLocation() {
@@ -88,7 +88,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Gets the world for this object
-     * 
+     *
      * @return The world
      */
     public World getWorld() {
@@ -97,7 +97,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Gets the nearby players to this location
-     * 
+     *
      * @param range The range to search
      * @return A map, Key = Username, Value = Range
      */
@@ -113,7 +113,7 @@ public class Location extends ThreeDimensionalVector {
 
     /**
      * Converts this into a chunk coordinats object
-     * 
+     *
      * @return The chunk coordinates
      */
     public ChunkCoordinates toChunkCoordinates() {

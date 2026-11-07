@@ -21,7 +21,7 @@ public class ExclusiveSlot extends Slot {
 
     /**
      * Sets the black/whitelist
-     * 
+     *
      * @param exclusive The set for the black/whitelist
      * @return This instance, for convenience building
      */
@@ -32,7 +32,7 @@ public class ExclusiveSlot extends Slot {
 
     /**
      * Sets whether to do a whitelist or blacklist
-     * 
+     *
      * @param whitelist Set this to true for a whitelist (default) false for blacklist
      * @return This instance, for convenience building
      */

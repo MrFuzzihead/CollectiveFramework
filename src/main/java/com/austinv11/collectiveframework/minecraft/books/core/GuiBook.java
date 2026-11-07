@@ -1,6 +1,6 @@
 package com.austinv11.collectiveframework.minecraft.books.core;
 
-import java.awt.*;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 

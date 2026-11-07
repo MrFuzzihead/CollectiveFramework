@@ -29,7 +29,7 @@ public class MinecraftTranslator {
 
     /**
      * Translates a given text (either from the unlocalized key or from standard text) (prefers Minecraft's translation)
-     * 
+     *
      * @param text   String to translate
      * @param toLang Language to translate to
      * @return The translated text
@@ -46,7 +46,7 @@ public class MinecraftTranslator {
 
     /**
      * Translates a given text (either from the unlocalized key or from standard text) (prefers Minecraft's translation)
-     * 
+     *
      * @param text     String to translate
      * @param fromLang Language the string is from
      * @param toLang   Language to translate to
@@ -65,7 +65,7 @@ public class MinecraftTranslator {
 
     /**
      * Simplified method to translate a string to the local language for Minecraft
-     * 
+     *
      * @param text     String to translate
      * @param fromLang Language of the string to translate
      * @return The translated string
@@ -78,7 +78,7 @@ public class MinecraftTranslator {
 
     /**
      * Simplified method to translate a string to the local language for Minecraft
-     * 
+     *
      * @param text String to translate
      * @return The translated string
      * @throws TranslationException
@@ -90,7 +90,7 @@ public class MinecraftTranslator {
 
     /**
      * Gets the usable language key for the local language from Minecraft
-     * 
+     *
      * @return The key
      */
     public static String langToUsable() {
@@ -99,7 +99,7 @@ public class MinecraftTranslator {
 
     /**
      * Gets the usable language key for the given Minecraft language code
-     * 
+     *
      * @param code The Minecraft language code
      * @return The usable key
      */

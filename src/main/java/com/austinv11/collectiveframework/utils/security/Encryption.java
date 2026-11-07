@@ -5,26 +5,25 @@ import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.Objects;
 
-import javax.crypto.*;
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.ShortBufferException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
-import sun.misc.BASE64Decoder;
-import sun.misc.BASE64Encoder;
-import sun.reflect.CallerSensitive;
-import sun.reflect.Reflection;
 
 /**
  * This class simplifies and attempts to merge all java cipher/encryption apis
  */
 public final class Encryption {
 
-    private static final boolean useSunApi = isSunPackageAvailable();// Cached value for finding a sun package
-
     /**
      * Encrypts a value
-     * 
+     *
      * @param string               The string to encrypt
      * @param algorithm            The algorithm, mode and padding to use
      * @param key                  The key
@@ -58,7 +57,7 @@ public final class Encryption {
 
     /**
      * Decrypts a value
-     * 
+     *
      * @param string               The encrypted string
      * @param encryptionLength     The length of the encryption
      * @param algorithm            The algorithm, mode and padding to use
@@ -93,7 +92,7 @@ public final class Encryption {
 
     /**
      * Creates a new secret value
-     * 
+     *
      * @param value             The value
      * @param key               The key
      * @param meta              Any metadata
@@ -108,28 +107,21 @@ public final class Encryption {
 
     /**
      * Creates a new secret value with the approved caller as the caller of this method
-     * 
+     *
      * @param value             The value
      * @param key               The key
      * @param meta              Any metadata
      * @param isCallerSensitive Set this to true to limit callers (if supported on the JDK)
      * @return The secret value
      */
-    @CallerSensitive
     public static <V, K, M> SecretValue<V, K, M> newSecretValue(V value, K key, M meta, boolean isCallerSensitive) {
-        if (useSunApi && isCallerSensitive) return newSecretValue(
-            value,
-            key,
-            meta,
-            isCallerSensitive,
-            Reflection.getCallerClass()
-                .getName());
+        if (isCallerSensitive) return newSecretValue(value, key, meta, isCallerSensitive, getCallerClassName());
         else return newSecretValue(value, key, meta);
     }
 
     /**
      * Creates a new secret value
-     * 
+     *
      * @param value The value
      * @param key   The key
      * @param meta  Any metadata
@@ -141,48 +133,42 @@ public final class Encryption {
 
     /**
      * Gets the value of the SecretValue
-     * 
+     *
      * @param value The SecretValue
      * @return The value
      */
-    @CallerSensitive
     public static <V, K, M> V getValue(SecretValue<V, K, M> value) {
-        if (useSunApi && value.isCallerSensitive) {
-            if (!Reflection.getCallerClass()
-                .getName()
-                .equals(value.approvedCaller)) throw new SecurityException("Unapproved caller!");
+        if (value.isCallerSensitive) {
+            if (!Objects.equals(getCallerClassName(), value.approvedCaller))
+                throw new SecurityException("Unapproved caller!");
         }
         return value.value;
     }
 
     /**
      * Gets the key of the SecretValue
-     * 
+     *
      * @param value The SecretValue
      * @return The key
      */
-    @CallerSensitive
     public static <V, K, M> K getKey(SecretValue<V, K, M> value) {
-        if (useSunApi && value.isCallerSensitive) {
-            if (!Reflection.getCallerClass()
-                .getName()
-                .equals(value.approvedCaller)) throw new SecurityException("Unapproved caller!");
+        if (value.isCallerSensitive) {
+            if (!Objects.equals(getCallerClassName(), value.approvedCaller))
+                throw new SecurityException("Unapproved caller!");
         }
         return value.key;
     }
 
     /**
      * Gets the metadata of the SecretValue
-     * 
+     *
      * @param value The SecretValue
      * @return The metadata
      */
-    @CallerSensitive
     public static <V, K, M> M getMeta(SecretValue<V, K, M> value) {
-        if (useSunApi && value.isCallerSensitive) {
-            if (!Reflection.getCallerClass()
-                .getName()
-                .equals(value.approvedCaller)) throw new SecurityException("Unapproved caller!");
+        if (value.isCallerSensitive) {
+            if (!Objects.equals(getCallerClassName(), value.approvedCaller))
+                throw new SecurityException("Unapproved caller!");
         }
         return value.meta;
     }
@@ -194,26 +180,23 @@ public final class Encryption {
 
     /**
      * Performs a base 64 encoding on a string
-     * 
+     *
      * @param string   The string to encode
      * @param encoding The encoding of the string
      * @return Encoded string
-     * @throws UnsupportedOperationException Thrown if the sun package isn't found (i.e. when running with OpenJDK)
      * @throws UnsupportedEncodingException
      */
     public static String base64Encode(String string, String encoding)
         throws UnsupportedOperationException, UnsupportedEncodingException {
-        if (!useSunApi) throw new UnsupportedOperationException("Sun Package not found!");
-        BASE64Encoder encoder = new BASE64Encoder();
-        return encoder.encode(string.getBytes(encoding));
+        return Base64.getEncoder()
+            .encodeToString(string.getBytes(encoding));
     }
 
     /**
      * Performs a base 64 encoding on a string
-     * 
+     *
      * @param string The string to encode
      * @return Encoded string
-     * @throws UnsupportedOperationException Thrown if the sun package isn't found (i.e. when running with OpenJDK)
      * @throws UnsupportedEncodingException
      */
     public static String base64Encode(String string)
@@ -223,40 +206,45 @@ public final class Encryption {
 
     /**
      * Performs a base 64 decoding on a string
-     * 
+     *
      * @param string   The string to encode
      * @param encoding The encoding of the string
      * @return Decoded string
-     * @throws UnsupportedOperationException Thrown if the sun package isn't found (i.e. when running with OpenJDK)
      * @throws IOException
      */
     public static String base64Decode(String string, String encoding)
         throws UnsupportedOperationException, IOException {
-        if (!useSunApi) throw new UnsupportedOperationException("Sun Package not found!");
-        BASE64Decoder decoder = new BASE64Decoder();
-        return new String(decoder.decodeBuffer(string), encoding);
+        return new String(
+            Base64.getDecoder()
+                .decode(string),
+            encoding);
     }
 
     /**
      * Performs a base 64 decoding on a string
-     * 
+     *
      * @param string The string to encode
      * @return Decoded string
-     * @throws UnsupportedOperationException Thrown if the sun package isn't found (i.e. when running with OpenJDK)
      * @throws IOException
      */
     public static String base64Decode(String string) throws UnsupportedOperationException, IOException {
         return base64Decode(string, DEFAULT_ENCODING);
     }
 
-    // Don't wanna forget about our linux fans on OpenJDK
-    private static boolean isSunPackageAvailable() {
-        try {
-            Class.forName("sun.misc.BASE64Encoder");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
+    /**
+     * Returns the name of the first class outside of {@link Encryption} on the current call stack.
+     * This replaces the internal {@code sun.reflect.Reflection.getCallerClass()} API, which was
+     * removed in JDK 9, with a portable stack-trace inspection that also works on Java 8.
+     *
+     * @return The caller's class name, or {@code null} if no external caller is found
+     */
+    private static String getCallerClassName() {
+        String encryptionClassName = Encryption.class.getName();
+        for (StackTraceElement element : new Throwable().getStackTrace()) {
+            if (!element.getClassName()
+                .equals(encryptionClassName)) return element.getClassName();
         }
+        return null;
     }
 
     /**

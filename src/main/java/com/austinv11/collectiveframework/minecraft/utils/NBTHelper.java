@@ -17,7 +17,7 @@ public class NBTHelper {
 
     /**
      * Checks if the passed ItemStack contains the given tag in its NBTData
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key for the tag
      * @return True if the stack contains the key
@@ -28,7 +28,7 @@ public class NBTHelper {
 
     /**
      * Removes the specified tag from the stack's NBTData
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the tag
      */
@@ -46,7 +46,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -61,7 +61,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -73,7 +73,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -88,7 +88,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -100,7 +100,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -115,7 +115,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -127,7 +127,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -142,7 +142,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -154,7 +154,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -169,7 +169,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -181,7 +181,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -196,7 +196,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -208,7 +208,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -223,7 +223,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -235,7 +235,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -250,7 +250,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param keyValue  The value for the key
@@ -262,7 +262,7 @@ public class NBTHelper {
 
     /**
      * Gets the {@link NBTTagList} for the provided key in the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @param type      The type of tag list, see {@link net.minecraftforge.common.util.Constants.NBT}
@@ -278,7 +278,7 @@ public class NBTHelper {
 
     /**
      * Sets the {@link NBTTagList} for the provided key in the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @param tag       The tag list
@@ -290,7 +290,7 @@ public class NBTHelper {
 
     /**
      * Appends an item description to the stack
-     * 
+     *
      * @param itemStack The stack
      * @param text      The text for the description
      */
@@ -313,7 +313,7 @@ public class NBTHelper {
 
     /**
      * Sets an item description to the stack
-     * 
+     *
      * @param itemStack The stack
      * @param text      The text for the description
      */
@@ -328,7 +328,7 @@ public class NBTHelper {
 
     /**
      * Removes the item description to the stack
-     * 
+     *
      * @param itemStack The stack
      */
     public static void removeInfo(ItemStack itemStack) {
@@ -341,7 +341,7 @@ public class NBTHelper {
 
     /**
      * Sets a tag for the provided key in the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @param tag       The tag
@@ -353,7 +353,7 @@ public class NBTHelper {
 
     /**
      * Gets a tag for the provided key in the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The tag
@@ -365,7 +365,7 @@ public class NBTHelper {
 
     /**
      * Sets the value of the provided key on the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key representing the value
      * @param array     The value for the key
@@ -377,7 +377,7 @@ public class NBTHelper {
 
     /**
      * Gets a value for the given key from the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The value
@@ -389,7 +389,7 @@ public class NBTHelper {
 
     /**
      * Sets a compound tag for the provided key in the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @param tag       The tag
@@ -401,7 +401,7 @@ public class NBTHelper {
 
     /**
      * Gets a compound tag for the provided key in the passed ItemStack
-     * 
+     *
      * @param itemStack The stack
      * @param keyName   The key
      * @return The tag

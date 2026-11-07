@@ -45,7 +45,7 @@ public abstract class Book {
 
     /**
      * Default Book constructor, this MUST be public
-     * 
+     *
      * @param bookItem  The book item
      * @param bookStack The book stack
      */
@@ -56,14 +56,14 @@ public abstract class Book {
 
     /**
      * Used to determine how data will be stored in the book
-     * 
+     *
      * @return The storage type
      */
     public abstract DataStorageType getDataStorageType();
 
     /**
      * Gets the book's data
-     * 
+     *
      * @param stack The book stack (only necessary when {@link #getDataStorageType()} returns
      *              {@link DataStorageType#LOCAL}
      * @return The data
@@ -93,7 +93,7 @@ public abstract class Book {
 
     /**
      * Sets the book's data
-     * 
+     *
      * @param data  The new data
      * @param stack The book stack (only necessary when {@link #getDataStorageType()} returns
      *              {@link DataStorageType#LOCAL}
@@ -146,7 +146,7 @@ public abstract class Book {
 
     /**
      * Retrieves the current page of the book
-     * 
+     *
      * @return The current page
      */
     public int getCurrentPage() {
@@ -155,7 +155,7 @@ public abstract class Book {
 
     /**
      * Attempts to set the page of the book
-     * 
+     *
      * @param newPage The new page
      */
     public void setPage(int newPage) {
@@ -171,7 +171,7 @@ public abstract class Book {
 
     /**
      * Do NOT touch this, it is required for communications between the actual gui and book
-     * 
+     *
      * @param gui The actual gui
      */
     @SideOnly(Side.CLIENT)
@@ -181,7 +181,7 @@ public abstract class Book {
 
     /**
      * Called when the book is opened
-     * 
+     *
      * @param player The player who opened the book
      */
     public void onOpen(EntityPlayer player) {
@@ -210,7 +210,7 @@ public abstract class Book {
 
     /**
      * Used to retrieve the pages in the book
-     * 
+     *
      * @return All the pages in the book, THE ORDER MATTERS! Page at index 0 is the page displayed on the first page of
      *         the book
      */
@@ -218,14 +218,14 @@ public abstract class Book {
 
     /**
      * Used to get the background image, basically the generic background
-     * 
+     *
      * @return The resource location of the background, or null if there aren't any
      */
     public abstract ResourceLocation getBackground();
 
     /**
      * Called when the page is rendered
-     * 
+     *
      * @param dt The time since the last render of the current pass in milliseconds
      */
     @SideOnly(Side.CLIENT)
@@ -233,7 +233,7 @@ public abstract class Book {
 
     /**
      * Called when the page is attempted to be changed
-     * 
+     *
      * @param oldPage The current page of the book
      * @param newPage The new page of the book
      * @return True to allow the page flip, false if otherwise

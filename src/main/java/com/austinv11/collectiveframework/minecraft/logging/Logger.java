@@ -13,7 +13,7 @@ public class Logger {
 
     /**
      * Constructor for the logger
-     * 
+     *
      * @param label The label to use
      */
     public Logger(String label) {
@@ -26,7 +26,7 @@ public class Logger {
 
     /**
      * Logs a message at the ALL level
-     * 
+     *
      * @param object The object to log
      */
     public void all(Object object) {
@@ -35,7 +35,7 @@ public class Logger {
 
     /**
      * Logs a message at the DEBUG level
-     * 
+     *
      * @param object The object to log
      */
     public void debug(Object object) {
@@ -44,7 +44,7 @@ public class Logger {
 
     /**
      * Logs a message at the ERROR level
-     * 
+     *
      * @param object The object to log
      */
     public void error(Object object) {
@@ -53,7 +53,7 @@ public class Logger {
 
     /**
      * Logs a message at the FATAL level
-     * 
+     *
      * @param object The object to log
      */
     public void fatal(Object object) {
@@ -62,7 +62,7 @@ public class Logger {
 
     /**
      * Logs a message at the INFO level
-     * 
+     *
      * @param object The object to log
      */
     public void info(Object object) {
@@ -71,7 +71,7 @@ public class Logger {
 
     /**
      * Logs a message at the OFF level
-     * 
+     *
      * @param object The object to log
      */
     public void off(Object object) {
@@ -80,7 +80,7 @@ public class Logger {
 
     /**
      * Logs a message at the TRACE level
-     * 
+     *
      * @param object The object to log
      */
     public void trace(Object object) {
@@ -89,7 +89,7 @@ public class Logger {
 
     /**
      * Logs a message at the WARN level
-     * 
+     *
      * @param object The object to log
      */
     public void warn(Object object) {

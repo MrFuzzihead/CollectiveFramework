@@ -16,7 +16,7 @@ public class StructureCreator {
     /**
      * Adds a block to the structure with the default implementation of
      * {@link com.austinv11.collectiveframework.minecraft.utils.StructureCreator.ICheckBlockValidity}
-     * 
+     *
      * @param location The location of the block
      * @param block    The block
      */
@@ -27,7 +27,7 @@ public class StructureCreator {
     /**
      * Adds a block to the structure with the default implementation of
      * {@link com.austinv11.collectiveframework.minecraft.utils.StructureCreator.ICheckBlockValidity}
-     * 
+     *
      * @param location The location of the block
      * @param block    The block
      * @param meta     The meta for the block
@@ -39,7 +39,7 @@ public class StructureCreator {
     /**
      * Adds a block to the structure with a custom implementation of
      * {@link com.austinv11.collectiveframework.minecraft.utils.StructureCreator.ICheckBlockValidity}
-     * 
+     *
      * @param location        The location of the block
      * @param block           The block
      * @param meta            The meta for the block
@@ -57,7 +57,7 @@ public class StructureCreator {
 
     /**
      * Checks if the structure is valid for spawning
-     * 
+     *
      * @return True if the structure can be generated, false if otherwise
      */
     public boolean isStructureValid() {
@@ -77,7 +77,7 @@ public class StructureCreator {
 
     /**
      * Generates the structure with the set flags, it won't generate if {@link #isStructureValid()} is false
-     * 
+     *
      * @param forceOptionalBlocks If true, blocks which don't need to be generated for the structure to spawn will spawn
      */
     public void generateStructure(boolean forceOptionalBlocks) {
@@ -86,7 +86,7 @@ public class StructureCreator {
 
     /**
      * Generates the structure with the set flags
-     * 
+     *
      * @param forceOptionalBlocks    If true, blocks which don't need to be generated for the structure to spawn will
      *                               spawn
      * @param forceNonOptionalBlocks If true, the structure will generate regardless of the results of
@@ -133,7 +133,7 @@ public class StructureCreator {
 
         /**
          * Checks if the block can be generated in the desired location
-         * 
+         *
          * @param block    The block
          * @param meta     The metadata for the block
          * @param location The location

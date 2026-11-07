@@ -17,7 +17,7 @@ public interface IConfigurationHandler {
     /**
      * Called when a value is set/changed for a config, same as
      * {@link #setValue(String, String, Object, Object, boolean)} but saveToFile is assumed true
-     * 
+     *
      * @param configValue The value being modified
      * @param category    The category the value is in
      * @param value       The new value
@@ -27,7 +27,7 @@ public interface IConfigurationHandler {
 
     /**
      * Called when a value is set/changed for a config
-     * 
+     *
      * @param configValue The value being modified
      * @param category    The category the value is in
      * @param value       The new value
@@ -38,7 +38,7 @@ public interface IConfigurationHandler {
 
     /**
      * Called when a value is requested
-     * 
+     *
      * @param configValue The value being modified
      * @param category    The category the value is in
      * @param config      The config object
@@ -48,7 +48,7 @@ public interface IConfigurationHandler {
 
     /**
      * Called to load/create a config file
-     * 
+     *
      * @param fileName The file name for the config
      * @param config   The config object
      * @param hint     A map full of field data (feel free to ignore this);
@@ -59,7 +59,7 @@ public interface IConfigurationHandler {
 
     /**
      * Called to load/create a config from a string
-     * 
+     *
      * @param string The string containing all the data
      * @param config The config object
      * @param hint   A map full of field data (feel free to ignore this);
@@ -70,7 +70,7 @@ public interface IConfigurationHandler {
 
     /**
      * Called to get the config file
-     * 
+     *
      * @param fileName The file name for the config
      * @param config   The config object
      * @return The file representing the config
@@ -79,7 +79,7 @@ public interface IConfigurationHandler {
 
     /**
      * Returns whether the config contains the specified value
-     * 
+     *
      * @param configValue The value
      * @param category    The category the value is in
      * @return True if contained
@@ -88,7 +88,7 @@ public interface IConfigurationHandler {
 
     /**
      * Converts the config into a string
-     * 
+     *
      * @return The config
      */
     public String convertToString(Object config);

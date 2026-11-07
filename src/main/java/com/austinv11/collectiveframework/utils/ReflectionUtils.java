@@ -19,7 +19,7 @@ public class ReflectionUtils {
 
     /**
      * Gets a list of declared methods with the given annotation
-     * 
+     *
      * @param annotation The annotation to search for
      * @param clazz      The class to search in
      * @return The methods with the annotation
@@ -33,7 +33,7 @@ public class ReflectionUtils {
 
     /**
      * Gets a list of declared fields with the given annotation
-     * 
+     *
      * @param annotation The annotation to search for
      * @param clazz      The class to search in
      * @return The fields with the annotation
@@ -47,7 +47,7 @@ public class ReflectionUtils {
 
     /**
      * Gets a list of methods with the given annotation
-     * 
+     *
      * @param annotation The annotation to search for
      * @param clazz      The class to search in
      * @return The methods with the annotation
@@ -61,7 +61,7 @@ public class ReflectionUtils {
 
     /**
      * Gets a list of fields with the given annotation
-     * 
+     *
      * @param annotation The annotation to search for
      * @param clazz      The class to search in
      * @return The fields with the annotation
@@ -75,7 +75,7 @@ public class ReflectionUtils {
 
     /**
      * Checks if the given method has the required parameters
-     * 
+     *
      * @param method The method
      * @param params The parameters (ORDER MATTERS!)
      * @return True of the parameters match, else false
@@ -92,7 +92,7 @@ public class ReflectionUtils {
 
     /**
      * Attempts to find either a declared or normal field (in that order)
-     * 
+     *
      * @param fieldName The field to get
      * @param clazz     The class to search
      * @return The field, or null if it wasn't found
@@ -107,7 +107,7 @@ public class ReflectionUtils {
 
     /**
      * Attempts to find either a declared or normal method (in that order)
-     * 
+     *
      * @param methodName The method to get
      * @param clazz      The class to search
      * @return The field, or null if it wasn't found
@@ -122,7 +122,7 @@ public class ReflectionUtils {
 
     /**
      * Gets the jvm signature for an object
-     * 
+     *
      * @param o The object
      * @return The signature
      */
@@ -152,7 +152,7 @@ public class ReflectionUtils {
 
     /**
      * Gets the class for a signature (only handles one signature at a time)
-     * 
+     *
      * @param signature The signature
      * @return The class representing the signature inputted
      * @throws ClassNotFoundException
@@ -194,7 +194,7 @@ public class ReflectionUtils {
 
     /**
      * Gets classes for a given name, including primitives
-     * 
+     *
      * @param name The name
      * @return The class
      * @throws ClassNotFoundException
@@ -214,7 +214,7 @@ public class ReflectionUtils {
 
     /**
      * This method checks if the specified class name is of a primitive
-     * 
+     *
      * @param name The class name
      * @return True if the name is of a primitive data type
      */
@@ -233,7 +233,7 @@ public class ReflectionUtils {
 
     /**
      * This method checks if the specified class name is of a primitive, includes primitive object names
-     * 
+     *
      * @param name The class name
      * @return True if the name is of a primitive data type
      */
@@ -252,7 +252,7 @@ public class ReflectionUtils {
 
     /**
      * Checks if the given object is a primitive wrapper object
-     * 
+     *
      * @param o The object
      * @return True of the object represents a primitive wrapper object
      */
@@ -269,7 +269,7 @@ public class ReflectionUtils {
 
     /**
      * This attempts to coerce a string into a standard java object
-     * 
+     *
      * @param containingString The string to coerce
      * @return The object, either a {@link Double}, {@link Integer}, {@link Character},
      *         {@link Boolean}, null, or {@link String}
@@ -288,7 +288,7 @@ public class ReflectionUtils {
 
     /**
      * Creates an array from a string
-     * 
+     *
      * @param containingString The string
      * @return The array
      */
@@ -304,7 +304,7 @@ public class ReflectionUtils {
 
     /**
      * Creates an array from a string
-     * 
+     *
      * @param containingString The string
      * @param toObject         The type for the array
      * @return The array
@@ -329,7 +329,7 @@ public class ReflectionUtils {
 
     /**
      * Tries to create an object from a string
-     * 
+     *
      * @param objectString The string representing the object
      * @param object       The object to deserialize the string into
      * @return The object
@@ -393,7 +393,7 @@ public class ReflectionUtils {
 
     /**
      * Translates an object into a string readable by {@link #objectFromString}
-     * 
+     *
      * @param o The object
      * @return The String
      */
@@ -403,7 +403,7 @@ public class ReflectionUtils {
 
     /**
      * Translates an object into a string readable by {@link #objectFromString}
-     * 
+     *
      * @param o    The object
      * @param tabs The number of tab indents
      * @return The string
@@ -461,7 +461,7 @@ public class ReflectionUtils {
 
     /**
      * Checks if a class implements another class
-     * 
+     *
      * @param classToExamine The class to check
      * @param interfaceClass The interface to look for
      * @return True if the class implements the provided interface

@@ -72,7 +72,7 @@ public class YandexProvider implements ITranslationProvider {
 
     /**
      * Method to get the available translations
-     * 
+     *
      * @return Possible language combinations
      */
     public static String[] getLangs() throws IOException {

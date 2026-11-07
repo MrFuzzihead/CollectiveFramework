@@ -15,7 +15,7 @@ public class MinecraftDependencyManager extends DependencyManager {
 
     /**
      * Attempts to load the specified library (must be a proper java archive!)
-     * 
+     *
      * @param file The file representing the library
      * @throws MalformedURLException
      */
