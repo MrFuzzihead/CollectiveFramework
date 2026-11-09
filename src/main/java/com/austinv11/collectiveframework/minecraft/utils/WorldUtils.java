@@ -49,7 +49,9 @@ public class WorldUtils {
         World world = location.getWorld();
         double x = location.getX(), y = location.getY(), z = location.getZ();
         Vec3 desired = Vec3.createVectorHelper(x, y, z);
-        double lowestDistance = maxRange;
+        // Started at maxRange, so the `distance < lowestDistance` comparison excluded an entity standing exactly
+        // on the range boundary even though the range test itself is `<=`.
+        double lowestDistance = Double.POSITIVE_INFINITY;
         Entity closest = null;
         for (Entity ent : (List<Entity>) world.loadedEntityList) {
             Vec3 toCompare = Vec3.createVectorHelper(ent.posX, ent.posY, ent.posZ);

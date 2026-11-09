@@ -106,15 +106,6 @@ public class GameTestMod {
             return 4;
         }
 
-        /**
-         * {@link TileEntityInventory} provides {@code removeStackFromSlotStatic} but never wires it into
-         * {@code IInventory}, so every subclass has to implement this itself (CODE_REVIEW §6.7).
-         */
-        @Override
-        public ItemStack getStackInSlotOnClosing(int slot) {
-            return removeStackFromSlotStatic(items, slot);
-        }
-
         @Override
         public NBTTagCompound writeSyncData() {
             NBTTagCompound tag = new NBTTagCompound();
@@ -346,6 +337,7 @@ public class GameTestMod {
         checkTileEntityInventoryRoundTrip();
         checkTileEntitySyncGate();
         checkLocationAndStructureCreator();
+        checkTooltips();
         checkTimeUpdateBounds();
         checkTranslationFailsFastWithoutAKey();
         checkBookPaging();
@@ -629,6 +621,57 @@ public class GameTestMod {
         check(
             "structure creator kept the second block's metadata (CODE_REVIEW §2.15)",
             world.getBlockMetadata(x + 2, y, z) == 3);
+    }
+
+    // ------------------------------------------------------------------------------------ tooltips
+
+    /**
+     * {@code TooltipHandler} cannot be unit-tested because {@code OreDictionary}'s static initialiser needs a
+     * running game, so its coverage lives here.
+     */
+    private static void checkTooltips() {
+        boolean previous = Config.debugTooltips;
+        Config.debugTooltips = true;
+        try {
+            ItemStack stack = new ItemStack(Items.stick);
+            java.util.List<String> tooltip = new java.util.ArrayList<String>();
+            net.minecraftforge.event.entity.player.ItemTooltipEvent event = new net.minecraftforge.event.entity.player.ItemTooltipEvent(
+                stack,
+                null,
+                tooltip,
+                false);
+
+            new com.austinv11.collectiveframework.minecraft.event.handler.TooltipHandler().onTooltip(event);
+
+            check("the tooltip gains a string item id", tooltip.contains("\u00a7nString Item ID:"));
+            check(
+                "the tooltip lists the item's registry name",
+                tooltip.stream()
+                    .anyMatch(line -> line != null && line.contains("stick")));
+
+            ItemStack tagged = new ItemStack(Items.stick);
+            NBTHelper.setInteger(tagged, "value", 7);
+            java.util.List<String> taggedTooltip = new java.util.ArrayList<String>();
+            new com.austinv11.collectiveframework.minecraft.event.handler.TooltipHandler().onTooltip(
+                new net.minecraftforge.event.entity.player.ItemTooltipEvent(tagged, null, taggedTooltip, false));
+            check("a tagged stack gains an NBT section", taggedTooltip.contains("\u00a7nNBT Tags:"));
+        } finally {
+            Config.debugTooltips = previous;
+        }
+
+        Config.debugTooltips = false;
+        try {
+            java.util.List<String> empty = new java.util.ArrayList<String>();
+            new com.austinv11.collectiveframework.minecraft.event.handler.TooltipHandler().onTooltip(
+                new net.minecraftforge.event.entity.player.ItemTooltipEvent(
+                    new ItemStack(Items.stick),
+                    null,
+                    empty,
+                    false));
+            check("the tooltip is untouched when debug tooltips are off", empty.isEmpty());
+        } finally {
+            Config.debugTooltips = false;
+        }
     }
 
     // -------------------------------------------------------------------------------- translation

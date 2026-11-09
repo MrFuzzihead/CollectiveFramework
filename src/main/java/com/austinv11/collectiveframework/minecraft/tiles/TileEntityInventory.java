@@ -1,5 +1,6 @@
 package com.austinv11.collectiveframework.minecraft.tiles;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,7 +24,20 @@ public abstract class TileEntityInventory extends TileEntity implements IInvento
     private int numUsingPlayers = 0;
 
     public TileEntityInventory() {
-        items = Arrays.asList(new ItemStack[getSize()]);
+        // Deliberately not sized here: getSize() is abstract, so a subclass's fields are still uninitialised and
+        // the inventory would be created with zero slots (CODE_REVIEW §2.4). Sizing happens on first use.
+        items = new ArrayList<ItemStack>();
+    }
+
+    /**
+     * Sizes {@link #items} to {@link #getSize()}, preserving anything already stored.
+     */
+    protected final void ensureCapacity() {
+        int size = getSize();
+        if (items.size() == size) return;
+        List<ItemStack> resized = new ArrayList<ItemStack>(size);
+        for (int i = 0; i < size; i++) resized.add(i < items.size() ? items.get(i) : null);
+        items = resized;
     }
 
     /**
@@ -52,6 +66,7 @@ public abstract class TileEntityInventory extends TileEntity implements IInvento
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
         super.writeToNBT(nbttagcompound);
+        ensureCapacity();
         NBTTagList itemsNbt = new NBTTagList();
         for (ItemStack item : items) {
             NBTTagCompound itemNbt = new NBTTagCompound();
@@ -63,19 +78,36 @@ public abstract class TileEntityInventory extends TileEntity implements IInvento
 
     @Override
     public int getSizeInventory() {
-        return getSize();
+        ensureCapacity();
+        return items.size();
     }
 
     @Override
     @Nullable
     public ItemStack getStackInSlot(int slot) {
-        if (items.size() > slot) return items.get(slot);
+        ensureCapacity();
+        if (slot >= 0 && items.size() > slot) return items.get(slot);
         return null;
     }
 
     @Override
     public ItemStack decrStackSize(int slot, int amount) {
+        ensureCapacity();
         return decrStackSizeStatic(this, items, slot, amount);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Implemented here rather than left abstract: the class already shipped
+     * {@link #removeStackFromSlotStatic(List, int)} but never wired it in, so every subclass had to reimplement
+     * it (CODE_REVIEW §6.7).
+     */
+    @Override
+    @Nullable
+    public ItemStack getStackInSlotOnClosing(int slot) {
+        ensureCapacity();
+        return removeStackFromSlotStatic(items, slot);
     }
 
     @Nullable
@@ -114,6 +146,7 @@ public abstract class TileEntityInventory extends TileEntity implements IInvento
 
     @Override
     public void setInventorySlotContents(int slot, ItemStack stack) {
+        ensureCapacity();
         setInventorySlotContentsStatic(this, items, slot, stack);
     }
 
@@ -173,6 +206,7 @@ public abstract class TileEntityInventory extends TileEntity implements IInvento
 
     @Override
     public void markDirty() {
+        ensureCapacity();
         for (int i = 0; i < items.size(); i++)
             if (items.get(i) != null && items.get(i).stackSize < 1) items.set(i, null);
         super.markDirty();

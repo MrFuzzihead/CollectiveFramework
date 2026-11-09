@@ -165,6 +165,62 @@ public class ConfigRegistryTest {
         Assert.assertFalse(proxy.handler.hasValue("absent", "Test"));
     }
 
+    // -------------------------------------------------------------------------- GUI categories
+
+    /**
+     * CODE_REVIEW §1.2 - {@code ConfigRegistry#getCategories} is what the config GUI builds its list from. It
+     * refuses to run on a server, so a client-side proxy is installed for the test. This is the same path the
+     * client game test exercises, but at unit speed.
+     */
+    @Test
+    public void getCategoriesBuildsTheGuiList() throws Exception {
+        ConfigRegistry.ConfigProxy proxy = loadedProxy();
+        ConfigRegistry.configs.add(proxy);
+        CommonProxy previous = CollectiveFramework.proxy;
+        CollectiveFramework.proxy = new CommonProxy() {
+
+            @Override
+            public cpw.mods.fml.relauncher.Side getSide() {
+                return cpw.mods.fml.relauncher.Side.CLIENT;
+            }
+        };
+        try {
+            java.util.ArrayList<cpw.mods.fml.client.config.IConfigElement> categories = ConfigRegistry
+                .getCategories(proxy.config, "collectiveframework");
+
+            Assert.assertFalse("the config GUI would be empty", categories.isEmpty());
+            boolean sawTestCategory = false;
+            for (cpw.mods.fml.client.config.IConfigElement element : categories) {
+                Assert.assertNotNull(element.getName());
+                if (element.getName()
+                    .contains("Test")) sawTestCategory = true;
+            }
+            Assert.assertTrue("the 'Test' category is missing from " + categories, sawTestCategory);
+        } finally {
+            CollectiveFramework.proxy = previous;
+            ConfigRegistry.configs.remove(proxy);
+        }
+    }
+
+    @Test
+    public void getCategoriesIsEmptyForAnUnregisteredConfig() throws Exception {
+        CommonProxy previous = CollectiveFramework.proxy;
+        CollectiveFramework.proxy = new CommonProxy() {
+
+            @Override
+            public cpw.mods.fml.relauncher.Side getSide() {
+                return cpw.mods.fml.relauncher.Side.CLIENT;
+            }
+        };
+        try {
+            Assert.assertTrue(
+                ConfigRegistry.getCategories(new Object(), "collectiveframework")
+                    .isEmpty());
+        } finally {
+            CollectiveFramework.proxy = previous;
+        }
+    }
+
     // ------------------------------------------------------------------------ server sync revert
 
     /**

@@ -33,9 +33,8 @@ Java 17+).
 The two that remain are not defects: §2.24 is a deliberate API shape (see §11, batch 11) and §5 has
 no measurable cost left.
 
-**There are no `@Ignore`d tests left**, and the suite now covers all three layers: 526 unit tests, 81
+**There are no `@Ignore`d tests left**, and the suite covers all three layers: 620 unit tests, 85
 server-side in-game checks, and 4 client-side in-game checks that render real book entries under Xvfb.
-Nothing that was found is left unverified.
 
 The single highest-leverage fix is **#1 (event bus)** — it silently disables config sync, the time
 buttons, the key overlay, and book interactivity in one shot. Second is **#2/#3 (config
@@ -1466,8 +1465,8 @@ game.
 |---|---|
 | `addon.gradle.kts` | JaCoCo wiring, coverage floors, `gameTest` source set, `gameTestServer` task, `-PsmokeTest` hook |
 | `dependencies.gradle` | JUnit 4.13.2, Mockito 4.11.0 (`core` + `inline`) |
-| `src/test/java/**` | 526 unit tests, 0 `@Ignore`d |
-| `src/gameTest/java/**` | `GameTestMod` (81 server checks) + `ClientGameTests` (4 client checks) |
+| `src/test/java/**` | 620 unit tests, 0 `@Ignore`d |
+| `src/gameTest/java/**` | `GameTestMod` (85 server checks) + `ClientGameTests` (4 client checks) |
 | `src/main/java/.../SmokeTestHook.java` | CI-only: exits the JVM with a marker once FML finished loading |
 | `.github/workflows/smoke-test.yml` | server smoke test + in-game game test on every PR |
 
@@ -1486,19 +1485,21 @@ Both extra source sets are excluded from the published jar.
 
 ### 10.3 Coverage baseline
 
-Measured after batch 11 (§11):
+Measured after the coverage pass (§11, batch 12):
 
 | Counter | Covered / Total | Ratio | Floor |
 |---|---|---|---|
-| Instruction | 10,402 / 18,775 | 55.4% | — |
-| Branch | 1,063 / 2,119 | 50.2% | 49% |
-| **Line** | 1,876 / 3,599 | **52.1%** | **51%** |
-| Complexity | 896 / 1,901 | 47.1% | — |
-| Method | 481 / 835 | 57.6% | — |
-| Class | 74 / 130 | 56.9% | — |
+| Instruction | 11,551 / 18,852 | 61.3% | — |
+| Branch | 1,170 / 2,133 | 54.9% | 53% |
+| **Line** | 2,152 / 3,616 | **59.5%** | **58%** |
+| Complexity | 1,012 / 1,911 | 53.0% | — |
+| Method | 550 / 838 | 65.6% | — |
+| Class | 81 / 130 | 62.3% | — |
 
-The `utils` tree, `services`, `dependencies` and `minecraft/utils` are the best-covered packages; the
-remaining uncovered code is the GUI/render paths, which the client game test covers at runtime instead.
+The remaining gap is concentrated in four places, all environment-bound: `books/core` (`GuiBook`, needs a
+client), `network` (packet handler bodies, and FML's `MessageContext` has a package-private constructor),
+`event/handler` (needs a live game), and `minecraft/utils` (`GhostEntityPlayerMP`, `IconManager`,
+`MinecraftDependencyManager`).
 
 Per package: `multithreading` **85.8% line / 77.3% branch**, `language` **96.9% line**, `minecraft/threading`
 covered by `MainThreadTest`, `minecraft/network` **40.5% line** (the rest needs a live connection),
@@ -2141,3 +2142,36 @@ was wrong. The honest breakdown:
 
 Only one thing: **whether a rendered book page looks right**. That needs either a client plus image
 comparison, or a human. Everything else in the list above is reachable.
+
+### Batch 12 — the coverage pass
+
+A final push on everything that is unit-testable without a game, plus three real bugs the new tests found.
+
+| Review ref | Defect | Fix |
+|---|---|---|
+| **§2.4** | `TileEntityInventory`'s constructor called the abstract `getSize()`, so a subclass whose size comes from an instance field got a **zero-length** inventory. Found immediately by the first test written against it | The constructor creates an empty list; a new `ensureCapacity()` sizes it on first use, preserving anything already stored. The accessors, `markDirty` and the NBT paths all call it |
+| **§6.7** | `TileEntityInventory` shipped `removeStackFromSlotStatic` but never wired it into `IInventory#getStackInSlotOnClosing`, so every subclass had to reimplement it | Implemented in the base class, so subclasses no longer need to |
+| — | `WorldUtils#getNearestEntityToLocation` initialised `lowestDistance` to `maxRange`, so the `distance < lowestDistance` test excluded an entity standing **exactly** on the range boundary, contradicting the `<= maxRange` check | Initialised to `Double.POSITIVE_INFINITY` |
+| — | `ConfigRegistry#getCategories` read the handler's `current` map, which is only populated by `loadFile`, so it produced an empty GUI unless a file had already been loaded | Uses the same `fieldsFor(config)` fallback as `convertToString` |
+| — | `SimpleRunnableTest#aDisabledRunnableDoesNotOccupyAWorker` asserted on the **shared** executor's active-task count, which races against every other test class. It had already been made baseline-relative once and failed again | Replaced with a deterministic local assertion on a new `SimpleRunnable#isScheduled()`: a disabled runnable must have no outstanding future |
+
+New tests:
+
+| Test | Coverage |
+|---|---|
+| `NBTHelperTest` (33) | every getter/setter round trip, defaults for missing keys, tag removal, raw tags, compound tags, int arrays, lists, the lore helpers, and the surprising `getString` behaviour on a non-string tag |
+| `TooltipHandlerTest` | **dropped** — `OreDictionary`'s static initialiser needs a running game, so the handler cannot be unit-tested. Coverage moved to `GameTestMod` (+4 checks: string item id, registry name, NBT section, and the disabled case) |
+| `ExclusiveSlotTest` (7) | no filter, whitelist, blacklist, chainable setters, empty lists |
+| `ItemAndBlockBaseTest` (14) | unlocalised names, mod id lower-casing, stack limits, icon registration for both bases, the double-unwrap quirk, and the `"null"` fallback for an unset name |
+| `TileEntityInventoryTest` (20) | sizing, every `IInventory` method, stack-limit clamping, partial/full/over-strict decrements, `getStackInSlotOnClosing`, the static helpers, `markDirty` pruning |
+| `WorldUtilsTest` (14) | player lookup, nearest-entity search (order independence, out of range, exact boundary, empty world, 3D distance), block lookup, and the `Vec3` assumption the search rests on |
+| `GuiUtilsTest` (4) | `closeCurrentGui` is safe with no game running |
+| `ConfigRegistryTest` (+2) | `getCategories` builds a non-empty GUI list with a client-side proxy, and is empty for an unregistered config |
+
+Unit tests: 526 → **620**. Coverage: 52.1% → **59.5%** line, 50.2% → **54.9%** branch; floors raised to
+58% / 53%.
+
+What is left uncovered is concentrated in four environment-bound places and is not worth contorting the
+code to reach: `books/core` (`GuiBook` needs a client), `network` (FML's `MessageContext` has a
+package-private constructor), `event/handler` (needs a live game), and three classes in `minecraft/utils`
+that need a `MinecraftServer` or a client.

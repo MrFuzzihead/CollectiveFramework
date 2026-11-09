@@ -193,6 +193,19 @@ public abstract class SimpleRunnable implements Runnable {
         return delay;
     }
 
+    /**
+     * Whether a task is currently queued or running for this runnable.
+     * <p>
+     * A local, deterministic alternative to inspecting the shared pool's active-task count: after
+     * {@link #disable(boolean)} this must be false, which is what stops the runnable from occupying a worker.
+     *
+     * @return True if a task is outstanding
+     */
+    public boolean isScheduled() {
+        Future<?> current = future;
+        return current != null && !current.isDone() && !current.isCancelled();
+    }
+
     private void scheduleRepeating() {
         synchronized (this) {
             cancelFutureLocked();

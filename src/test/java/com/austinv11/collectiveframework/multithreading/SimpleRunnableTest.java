@@ -126,29 +126,34 @@ public class SimpleRunnableTest {
     }
 
     /**
-     * §1.13 - a disabled runnable must not keep a worker busy. The old loop spun forever without calling
-     * {@code run()}, so an invocation count alone would not catch it; this checks the executor itself.
+     * §1.13 - a disabled runnable must not keep a worker busy. The old loop spun forever *without* calling
+     * {@code run()}, so an invocation count alone would not catch it.
      * <p>
-     * {@code getActiveTaskCount()} is a count over the whole shared pool, and other test classes hand work to it
-     * too, so the assertion is relative to a baseline taken before this runnable starts rather than an absolute
-     * zero.
+     * This asserts on the runnable's own scheduled future rather than on the shared pool's active-task count: the
+     * pool is global, so a count taken there races against every other test class that hands it work.
      */
     @Test
-    public void aDisabledRunnableDoesNotOccupyAWorker() throws Exception {
+    public void aDisabledRunnableIsNoLongerScheduled() throws Exception {
         CountingRunnable runnable = track(new CountingRunnable(2));
-        int baseline = SimpleRunnable.getActiveTaskCount();
 
         runnable.start();
         await(runnable.reached);
+        Assert.assertTrue("a repeating runnable should be scheduled", runnable.isScheduled());
+
         runnable.disable(true);
+        Assert.assertFalse("a disabled runnable must not still be scheduled", runnable.isScheduled());
+    }
+
+    @Test
+    public void aOneShotRunnableIsNoLongerScheduledWhenDone() throws Exception {
+        CountingRunnable runnable = track(new CountingRunnable(1));
+
+        runnable.startOnce();
+        await(runnable.completed);
 
         long deadline = System.currentTimeMillis() + 5000L;
-        while (SimpleRunnable.getActiveTaskCount() > baseline && System.currentTimeMillis() < deadline) {
-            Thread.sleep(10);
-        }
-        Assert.assertTrue(
-            "a worker is still busy after disable(): " + SimpleRunnable.getActiveTaskCount() + " > " + baseline,
-            SimpleRunnable.getActiveTaskCount() <= baseline);
+        while (runnable.isScheduled() && System.currentTimeMillis() < deadline) Thread.sleep(10);
+        Assert.assertFalse("a finished one-shot must not still be scheduled", runnable.isScheduled());
     }
 
     @Test

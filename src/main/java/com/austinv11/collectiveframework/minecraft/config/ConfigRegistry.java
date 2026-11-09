@@ -380,13 +380,15 @@ public class ConfigRegistry {
             if (CollectiveFramework.proxy.getSide()
                 .equals(Side.SERVER)) throw new ConfigException("Cannot call method on a server.");
             ArrayList<IConfigElement> categories = new ArrayList<>();
-            for (String categoryName : current.keySet()) {
+            // fieldsFor() rather than current, so the GUI works before loadFile has run (CODE_REVIEW §1.6).
+            Map<String, Map<String, Field>> fields = fieldsFor(configObject);
+            for (String categoryName : fields.keySet()) {
                 String languageKey = String.format("%s.lang.config.%s", modid, categoryName);
                 ConfigCategory category = new ConfigCategory(languageKey);
                 category.setLanguageKey(languageKey);
-                for (String fieldName : current.get(categoryName)
+                for (String fieldName : fields.get(categoryName)
                     .keySet()) {
-                    Field field = current.get(categoryName)
+                    Field field = fields.get(categoryName)
                         .get(fieldName);
                     field.setAccessible(true);
                     String valueString = serialize(field.get(configObject));
