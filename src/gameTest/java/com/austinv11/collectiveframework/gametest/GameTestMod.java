@@ -13,6 +13,11 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.Constants;
 
 import com.austinv11.collectiveframework.minecraft.CollectiveFramework;
+import com.austinv11.collectiveframework.minecraft.books.api.Book;
+import com.austinv11.collectiveframework.minecraft.books.api.Entry;
+import com.austinv11.collectiveframework.minecraft.books.api.Page;
+import com.austinv11.collectiveframework.minecraft.books.core.ItemBook;
+import com.austinv11.collectiveframework.minecraft.books.core.LocalBookData;
 import com.austinv11.collectiveframework.minecraft.config.ConfigRegistry;
 import com.austinv11.collectiveframework.minecraft.network.TimeUpdatePacket;
 import com.austinv11.collectiveframework.minecraft.reference.Config;
@@ -118,6 +123,84 @@ public class GameTestMod {
         @Override
         public void readSyncData(NBTTagCompound data) {
             INBTSyncable.readFromNbtKeepingPosition(this, data);
+        }
+    }
+
+    /** A page with no content, so {@link TestBook} can have a real page array. */
+    public static class TestPage extends Page {
+
+        @Override
+        public net.minecraft.util.ResourceLocation getBackground() {
+            return null;
+        }
+
+        @Override
+        public Entry[] getEntries() {
+            return new Entry[0];
+        }
+
+        @Override
+        public void onRender(int dt) {}
+    }
+
+    /** A book item so {@link TestBook} has a concrete {@link ItemBook}. */
+    public static class TestBookItem extends ItemBook {
+
+        public TestBookItem() {
+            setUnlocalizedName("collectiveframework_gametest_book");
+        }
+
+        @Override
+        public Class<? extends Book> getBook() {
+            return TestBook.class;
+        }
+
+        @Override
+        public net.minecraft.creativetab.CreativeTabs getTab() {
+            return null;
+        }
+
+        @Override
+        public String getModId() {
+            return "collectiveframework_gametest";
+        }
+    }
+
+    /** A three-page book using per-item storage, so paging can be checked against a real ItemStack. */
+    public static class TestBook extends Book {
+
+        private static final Page[] PAGES = { new TestPage(), new TestPage(), new TestPage() };
+
+        public TestBook(ItemBook bookItem, ItemStack bookStack) {
+            super(bookItem, bookStack);
+        }
+
+        @Override
+        public DataStorageType getDataStorageType() {
+            return DataStorageType.INSTANCE;
+        }
+
+        @Override
+        public Page[] getPages() {
+            return PAGES;
+        }
+
+        @Override
+        public net.minecraft.util.ResourceLocation getBackground() {
+            return null;
+        }
+
+        @Override
+        public void onRender(int dt) {}
+
+        @Override
+        public boolean onPageFlip(int oldPage, int newPage) {
+            return true;
+        }
+
+        @Override
+        public boolean doesPauseGame() {
+            return false;
         }
     }
 
@@ -237,6 +320,8 @@ public class GameTestMod {
         checkTileEntitySyncGate();
         checkTimeUpdateBounds();
         checkTranslationFailsFastWithoutAKey();
+        checkBookPaging();
+        checkLocalBookDataPersists();
         checkThreadingRunsOnAModernJvm();
         checkColors();
     }
@@ -489,6 +574,54 @@ public class GameTestMod {
                 e.errorType
                     == com.austinv11.collectiveframework.language.translation.TranslationException.ErrorTypes.NOT_ENOUGH_PARAMETERS);
         }
+    }
+
+    // --------------------------------------------------------------------------------------- books
+
+    /**
+     * CODE_REVIEW §1.20 (fixed) - {@code Book#setPage} clamped a negative page to {@code pages.length}, one past
+     * the end, so paging backwards from the first page made the renderer throw
+     * {@code ArrayIndexOutOfBoundsException}. Exercised here against a real {@link ItemStack}.
+     */
+    private static void checkBookPaging() {
+        ItemStack stack = new ItemStack(new TestBookItem());
+        TestBook book = new TestBook((ItemBook) stack.getItem(), stack);
+
+        book.setPage(1);
+        check("setPage accepts a valid index", book.getCurrentPage() == 1);
+
+        book.setPage(3);
+        check("setPage wraps forward past the end", book.getCurrentPage() == 0);
+
+        book.setPage(-1);
+        check("setPage wraps backward to the last page (CODE_REVIEW §1.20)", book.getCurrentPage() == 2);
+
+        book.setPage(2);
+        check(
+            "the page is persisted to the stack",
+            NBTHelper.getCompoundTag(stack, "CFBookData")
+                .getInteger("page") == 2);
+    }
+
+    /**
+     * CODE_REVIEW §2.2 (fixed) - {@code LocalBookData} never called {@code markDirty()}, so LOCAL book data was
+     * never written to disk, and it registered its store unconditionally on first use, which could throw
+     * {@code Duplicate id} from {@code MapStorage}.
+     */
+    private static void checkLocalBookDataPersists() {
+        LocalBookData store = LocalBookData.getInstance();
+        check("LocalBookData is available on a server", store != null);
+        check("LocalBookData can be resolved twice without a duplicate id", LocalBookData.getInstance() == store);
+
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setInteger("page", 4);
+        LocalBookData.putLocalData("collectiveframework_gametest", tag);
+
+        NBTTagCompound read = LocalBookData.retrieveLocalData("collectiveframework_gametest");
+        check("LocalBookData round trips a value", read != null && read.getInteger("page") == 4);
+        check("LocalBookData marks the save dirty (CODE_REVIEW §2.2)", store.isDirty());
+        check("LocalBookData reports its size", LocalBookData.size() >= 1);
+        check("LocalBookData returns null for an unknown key", LocalBookData.retrieveLocalData("nope") == null);
     }
 
     // ---------------------------------------------------------------------------------- threading

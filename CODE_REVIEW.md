@@ -27,10 +27,11 @@ Java 17+).
 | **Dead code** | ~25 items | Including 4 stale resource files and 4 stale lang keys |
 | **Perf** | 14 | One is a per-frame disk read |
 
-**Fix progress: 27 of 70 closed.** Batch 1 (§1.1, §1.2, §1.3, §1.4, §1.5, §1.18, plus §2.18 and the
+**Fix progress: 34 of 70 closed.** Batch 1 (§1.1, §1.2, §1.3, §1.4, §1.5, §1.18, plus §2.18 and the
 `ITranslationProvider` signature), batch 2 (§1.7, §1.16, §1.17, plus the `fromBytes` half of §3.2),
-batch 3 (§1.8, §1.9, §3.12), batch 4 (§1.11–§1.15, plus the `SimpleRunnable` half of §3.15) and
-batch 5 (§3.1, §3.5–§3.8) are implemented and covered by tests — see §11.
+batch 3 (§1.8, §1.9, §3.12), batch 4 (§1.11–§1.15, plus the `SimpleRunnable` half of §3.15),
+batch 5 (§3.1, §3.5–§3.8) and batch 6 (§1.20, §2.1, §2.2, §2.19, §2.20, §5.1) are implemented and
+covered by tests — see §11.
 
 The single highest-leverage fix is **#1 (event bus)** — it silently disables config sync, the time
 buttons, the key overlay, and book interactivity in one shot. Second is **#2/#3 (config
@@ -1461,8 +1462,8 @@ game.
 |---|---|
 | `addon.gradle.kts` | JaCoCo wiring, coverage floors, `gameTest` source set, `gameTestServer` task, `-PsmokeTest` hook |
 | `dependencies.gradle` | JUnit 4.13.2, Mockito 4.11.0 (`core` + `inline`) |
-| `src/test/java/**` | 349 unit tests (315 active, 34 `@Ignore`d known defects) |
-| `src/gameTest/java/**` | `GameTestMod` — 61 in-game assertions, booted by `gameTestServer` |
+| `src/test/java/**` | 374 unit tests (340 active, 34 `@Ignore`d known defects) |
+| `src/gameTest/java/**` | `GameTestMod` — 71 in-game assertions, booted by `gameTestServer` |
 | `src/main/java/.../SmokeTestHook.java` | CI-only: exits the JVM with a marker once FML finished loading |
 | `.github/workflows/smoke-test.yml` | server smoke test + in-game game test on every PR |
 
@@ -1481,19 +1482,20 @@ Both extra source sets are excluded from the published jar.
 
 ### 10.3 Coverage baseline
 
-Measured after batch 5 (§11):
+Measured after batch 6 (§11):
 
 | Counter | Covered / Total | Ratio | Floor |
 |---|---|---|---|
-| Instruction | 6,966 / 16,880 | 41.3% | — |
-| Branch | 721 / 1,692 | 42.6% | 41% |
-| **Line** | 1,212 / 3,338 | **36.3%** | **35%** |
-| Complexity | 649 / 1,627 | 39.9% | — |
-| Method | 348 / 779 | 44.7% | — |
-| Class | 53 / 129 | 41.1% | — |
+| Instruction | 7,300 / 17,201 | 42.4% | — |
+| Branch | 755 / 1,772 | 42.6% | 41% |
+| **Line** | 1,291 / 3,379 | **38.2%** | **37%** |
+| Complexity | 682 / 1,680 | 40.6% | — |
+| Method | 368 / 792 | 46.5% | — |
+| Class | 59 / 129 | 45.7% | — |
 
 Per package: `multithreading` **85.8% line / 77.3% branch**, `language` **96.9% line**, `minecraft/threading`
-covered by `MainThreadTest`, `minecraft/network` **40.5% line** (the rest needs a live connection).
+covered by `MainThreadTest`, `minecraft/network` **40.5% line** (the rest needs a live connection),
+`minecraft/books/api` covered by `BookTest`.
 
 The floors are a regression guard, not a target: most of the mod is Minecraft-coupled (GUIs,
 packets, tile entities) and is only reachable from `gameTest`, which JaCoCo does not instrument.
@@ -1803,12 +1805,54 @@ Gradle entry points now pass `-Dfml.queryResult=confirm`, so no run can ever blo
 Unit tests: 320 → **349** (315 active, 34 `@Ignore`d). Coverage: 33.9% → **36.3%** line, 41.4% →
 **42.6%** branch; floors raised to 35% / 41%.
 
+### Batch 6 — the book API
+
+The last cluster containing a P0 crash plus two data-loss defects.
+
+| Review ref | Defect | Fix |
+|---|---|---|
+| **§1.20** | `Book#setPage` clamped a negative page to `pages.length` — one past the end — so paging backwards from the first page made `GuiBook` throw `ArrayIndexOutOfBoundsException` | Clamps to `length - 1`, and returns early when the book has no pages. `GuiBook` also clamps defensively when reading a stored page index, so a save written by an older version cannot crash the renderer |
+| **§2.1** | Every `GLOBAL` book shared one static `NBTTagCompound` buffer: opening two books made them overwrite each other and the second book's file was never read. The storage directory was never created, so every write failed with a swallowed `FileNotFoundException`. `player.getGameProfile()` NPE'd when there was no player | Cache keyed by storage path; the directory is created before writing; `getOwnerKey()` falls back to `"unowned"`; reads and writes are extracted into overridable `readGlobalData`/`writeGlobalData` so the storage path is testable |
+| **§2.2** | `LocalBookData` never called `markDirty()`, so LOCAL book data was never written to disk. It also created and registered its store unconditionally on first access, which discarded data already loaded from disk or threw `RuntimeException("Duplicate id: ...")` depending on ordering. The static map was never cleared, so entries leaked between saves. `MinecraftServer.getServer()` NPE'd on a multiplayer client | `getInstance()` returns the existing store when there is one and only registers when there is not; `readFromNBT` clears the map first; `putLocalData` calls `markDirty()`; `IDENTIFIER` is `final`; a missing server returns null instead of throwing |
+| **§2.19** | `GuiBook`'s mouse hit test compared the click's y against `entry.height` instead of the entry's own bottom edge, and passed `event.button` as the wheel delta and `event.dwheel` as the button — swapped relative to `InteractiveEntry#onMouseEvent` | Correct bounds; arguments in the documented order |
+| **§2.20** | `GuiUtils.closeCurrentGui` set `mc.currentScreen = null` directly, skipping `displayGuiScreen`'s cleanup and leaving the cursor grabbed. `GuiBook`'s constructor called it on failure, from inside Minecraft's own `displayGuiScreen`, and the half-built screen was then assigned as the current screen anyway | `closeCurrentGui` delegates to `mc.displayGuiScreen(null)` and is null-safe; validation moved into `GuiHandler.getClientGuiElement`, which returns null instead of constructing a broken screen; `GuiBook` carries an `initialised` flag and every render/input path no-ops without it |
+| **§5.1** | `GuiBook` re-read and re-decoded the background PNG on every frame, per entry — six decodes per frame for a five-entry book, roughly 360 per second at 60 fps | Image sizes cached per `ResourceLocation`; the background origin is computed once per call instead of per entry; `ScaledResolution` is refreshed once per frame instead of 2-4 times |
+| — | `GuiBook`'s input handlers did not check that the book screen was still the current screen, so a leaked registration would fire on every keypress in the game | Both handlers check `Minecraft.getMinecraft().currentScreen == this` |
+
+**API changes**
+
+* `Book#setData` now reads and writes through `getOwnerKey()`; the owner key is `"unowned"` rather than an
+  NPE when there is no player.
+* New protected seams: `Book#getGlobalStorageFile()`, `#getBookStorageKey()`, `#getOwnerKey()`,
+  `#readGlobalData(File)`, `#writeGlobalData(File, NBTTagCompound)`. New public helpers:
+  `Book.clearGlobalDataCache()`, `LocalBookData#size()`, `#clear()`.
+* `Book.GLOBAL_DIR` is now `public`.
+* `LocalBookData.IDENTIFIER` is `final` (was a mutable public static).
+* `LocalBookData` is documented as server-side only: on a multiplayer client, reads return null and
+  writes are dropped instead of throwing. This is a pre-existing limitation that used to surface as an NPE.
+
+**Deliberately not done:** `ImageEntry`'s scaling pivot (§2.23) and making `Entry` a plain object instead
+of a `GuiScreen` (§2.24). Both are render-time changes that cannot be verified headlessly, and shipping
+untested GL changes is worse than leaving two documented findings open.
+
+**Tests added** — 25 new unit tests plus 10 in-game checks:
+
+| Test | Coverage |
+|---|---|
+| `BookTest` (22) | **§1.20**: forward wrap, backward clamp to the last page, valid index, no-op with zero pages, `onPageFlip` veto, page persisted through `setData`, restored by `onOpen`, out-of-range stored page clamped. **§2.1**: two GLOBAL books do not share a buffer, data read back from disk, `getData` returns a copy, the cache is updated synchronously, `writeGlobalData` creates a nested directory, missing and corrupt files yield an empty compound, owner key from the player UUID and its two fallbacks, `setData` without a player, storage key format |
+| `GuiHandlerTest` (5) | null player, empty hand, non-book item and unknown gui id all return null rather than constructing a screen; no server gui element |
+| `GameTestMod` (+10) | **§1.20** against a real `ItemStack`: valid index, forward wrap, backward wrap to the last page, page persisted into the stack's NBT. **§2.2** against a real server: `LocalBookData` resolves, resolves twice without a duplicate id, round-trips a value, **marks the save dirty**, reports its size, returns null for an unknown key |
+
+Unit tests: 349 → **374** (340 active, 34 `@Ignore`d). Coverage: 36.3% → **38.2%** line, 42.6% branch;
+the line floor was raised to 37%.
+
 ### Remaining batches
 
-Still open: the book API (§1.20, §2.1, §2.2, §2.19, §2.20), the config parser replacement
-(§1.6/§2.8/§2.9/§3.18 — §1.5 is fixed but the parser is still fragile), the HTTP/`FileUtils`
-robustness items (§3.4, §3.9), the geometry and `MathUtils` correctness items (§2.10–§2.16, §3.13,
-§3.14), the remaining performance items in §5, and the dead-code cleanup in §4.
+Still open: the config parser replacement (§1.6/§2.8/§2.9/§3.18 — §1.5 is fixed but the parser
+is still fragile), the HTTP and `FileUtils` robustness items (§3.4, §3.9), the geometry and `MathUtils`
+correctness items (§2.10–§2.16, §3.13, §3.14), `Entry extends GuiScreen` (§2.23–§2.25), the
+remaining performance items in §5, and the dead-code cleanup in §4.
 
-The book API is now the largest remaining cluster and contains one P0 crash (§1.20) plus two data-loss
-defects (§2.1, §2.2).
+Two book-API items were deliberately left out of batch 6 because they cannot be verified without a GL
+context, so they would be untested changes: `ImageEntry`'s scaling pivot (§2.23) and making `Entry` a
+plain object instead of a `GuiScreen` (§2.24). Both need a client-side visual check.

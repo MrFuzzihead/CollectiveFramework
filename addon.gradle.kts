@@ -119,9 +119,9 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
                 value = "COVEREDRATIO"
                 // Deliberately conservative: this is a regression guard, not a target. Most of this mod is
                 // Minecraft-coupled (GUIs, packets, tile entities) and only reachable from the gameTest source
-                // set, which JaCoCo does not instrument. Current baseline: 36.3% line / 42.6% branch /
-                // 41.3% instruction. Raise these as the pure-logic surface grows.
-                minimum = "0.35".toBigDecimal()
+                // set, which JaCoCo does not instrument. Current baseline: 38.2% line / 42.6% branch /
+                // 42.4% instruction. Raise these as the pure-logic surface grows.
+                minimum = "0.37".toBigDecimal()
             }
             limit {
                 counter = "BRANCH"
