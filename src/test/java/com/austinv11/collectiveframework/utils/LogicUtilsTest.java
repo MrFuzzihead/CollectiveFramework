@@ -1,7 +1,6 @@
 package com.austinv11.collectiveframework.utils;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -73,7 +72,6 @@ public class LogicUtilsTest {
      * CODE_REVIEW §2.16 - {@code xor} is implemented with a two-input short circuit, so it reports
      * "no odd number of trues" for 3+ inputs.
      */
-    @Ignore("CODE_REVIEW §2.16: xor is not parity for 3+ inputs")
     @Test
     public void xorOfThreeInputsShouldBeParity() {
         Assert.assertTrue(LogicUtils.xor(true, true, true));

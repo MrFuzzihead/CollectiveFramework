@@ -1,7 +1,6 @@
 package com.austinv11.collectiveframework.utils.math;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class TwoDimensionalVectorTest {
@@ -116,7 +115,6 @@ public class TwoDimensionalVectorTest {
      * CODE_REVIEW §3.15 - {@code equals} is overridden without {@code hashCode}, so value-equal vectors are
      * distinct hash keys. {@code Variable2DShape} and {@code ArrayUtils.removeRepeats} rely on both.
      */
-    @Ignore("CODE_REVIEW §3.15: equals without hashCode breaks hash-based collections")
     @Test
     public void equalVectorsShouldHaveEqualHashCodes() {
         Assert.assertEquals(new TwoDimensionalVector(1, 2).hashCode(), new TwoDimensionalVector(1, 2).hashCode());

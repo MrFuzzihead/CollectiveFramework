@@ -66,7 +66,6 @@ public class ArrayUtilsTest {
      * CODE_REVIEW §3.13 - a negative index falls through to {@code array[index]} and throws, and a
      * zero-length array makes the wrapping loop spin forever.
      */
-    @org.junit.Ignore("CODE_REVIEW §3.13: negative indices throw AIOOBE and empty arrays hang")
     @Test
     public void wrappedRetrieveShouldHandleNegativeIndices() {
         Assert.assertEquals(3, ArrayUtils.wrappedRetrieve(new int[] { 1, 2, 3 }, -1));

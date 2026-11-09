@@ -13,6 +13,9 @@ import com.austinv11.collectiveframework.utils.math.TwoDimensionalVector;
  */
 public class Variable2DShape {
 
+    /** Tolerance for area and perimeter comparisons. */
+    public static final double EPSILON = 1.0E-6D;
+
     private Line[] sides;
 
     /**
@@ -23,10 +26,12 @@ public class Variable2DShape {
      */
     public Variable2DShape(TwoDimensionalVector... vectors) throws IncompatibleDimensionsException {
         if (vectors.length < 3) throw new IncompatibleDimensionsException("Not enough vectors!");
-        Arrays.sort(vectors);
-        Line[] lines = new Line[vectors.length];
-        for (int i = 0; i < vectors.length; i++)
-            lines[i] = new Line(vectors[i], ArrayUtils.wrappedRetrieve(vectors, i + 1));
+        // Sort a copy: this used to sort the caller's array in place (CODE_REVIEW §2.12).
+        TwoDimensionalVector[] sorted = vectors.clone();
+        Arrays.sort(sorted);
+        Line[] lines = new Line[sorted.length];
+        for (int i = 0; i < sorted.length; i++)
+            lines[i] = new Line(sorted[i], ArrayUtils.wrappedRetrieve(sorted, i + 1));
         sides = lines;
         init();
     }
@@ -92,15 +97,50 @@ public class Variable2DShape {
      * @return The area
      */
     public double getArea() {
+        // The shoelace formula needs the vertices in polygon order. getVertices() returns them in side order,
+        // which the sorting constructor has already destroyed for anything with more than three corners, so a
+        // 4x4 square reported an area of 0 (CODE_REVIEW §2.12).
+        TwoDimensionalVector[] vertices = getOrderedVertices();
         double area = 0;
-        TwoDimensionalVector[] vertices = getVertices();
         for (int i = 0; i < vertices.length; i++) {
             TwoDimensionalVector vertex1 = ArrayUtils.wrappedRetrieve(vertices, i);
             TwoDimensionalVector vertex2 = ArrayUtils.wrappedRetrieve(vertices, i + 1);
             area += (vertex1.getX() * vertex2.getY()) - (vertex1.getY() * vertex2.getX());
         }
-        area = Math.abs(area / 2);
-        return area;
+        return Math.abs(area / 2);
+    }
+
+    /**
+     * The shape's vertices ordered counter-clockwise around its centroid, which is the order the shoelace
+     * formula and any other polygon traversal needs.
+     *
+     * @return The ordered vertices
+     */
+    public TwoDimensionalVector[] getOrderedVertices() {
+        TwoDimensionalVector[] vertices = getVertices();
+        if (vertices.length < 3) return vertices;
+        final TwoDimensionalVector centre = centroidOf(vertices);
+        List<TwoDimensionalVector> ordered = new ArrayList<TwoDimensionalVector>(Arrays.asList(vertices));
+        java.util.Collections.sort(ordered, new java.util.Comparator<TwoDimensionalVector>() {
+
+            @Override
+            public int compare(TwoDimensionalVector a, TwoDimensionalVector b) {
+                return Double.compare(
+                    Math.atan2(a.getY() - centre.getY(), a.getX() - centre.getX()),
+                    Math.atan2(b.getY() - centre.getY(), b.getX() - centre.getX()));
+            }
+        });
+        return ordered.toArray(new TwoDimensionalVector[ordered.size()]);
+    }
+
+    private static TwoDimensionalVector centroidOf(TwoDimensionalVector[] vertices) {
+        double x = 0;
+        double y = 0;
+        for (TwoDimensionalVector vertex : vertices) {
+            x += vertex.getX();
+            y += vertex.getY();
+        }
+        return new TwoDimensionalVector(x / vertices.length, y / vertices.length);
     }
 
     /**
@@ -126,9 +166,20 @@ public class Variable2DShape {
     public float getAngleForVertex(TwoDimensionalVector vertex) throws IncompatibleDimensionsException {
         Line[] sides = findSidesWithPoint(vertex);
         if (sides.length != 2) throw new IncompatibleDimensionsException(vertex.toString() + " is not a valid vertex!");
-        double slope1 = Double.isNaN(sides[0].get2DSlope()) ? Double.MAX_VALUE : sides[0].get2DSlope();
-        double slope2 = Double.isNaN(sides[1].get2DSlope()) ? Double.MAX_VALUE : sides[1].get2DSlope();
-        return (float) Math.atan(Math.abs((slope1 - slope2) / (1 + (slope1 * slope2))));
+        // Computed from the two edge vectors. The slope-based version used Math.atan, which has no quadrant, so
+        // an obtuse interior angle came back acute; a vertical edge was faked with Double.MAX_VALUE, which made
+        // the denominator infinite and the result 0 (CODE_REVIEW §2.12).
+        TwoDimensionalVector first = otherEnd(sides[0], vertex).subtract(vertex);
+        TwoDimensionalVector second = otherEnd(sides[1], vertex).subtract(vertex);
+        double denominator = first.length() * second.length();
+        if (denominator == 0) throw new IncompatibleDimensionsException(vertex + " has a zero-length side");
+        double cosine = first.dotProduct(second) / denominator;
+        return (float) Math.acos(Math.max(-1.0D, Math.min(1.0D, cosine)));
+    }
+
+    private static TwoDimensionalVector otherEnd(Line line, TwoDimensionalVector vertex) {
+        return line.get2DStart()
+            .equals(vertex) ? line.get2DEnd() : line.get2DStart();
     }
 
     /**
@@ -146,16 +197,9 @@ public class Variable2DShape {
      * @return The center coordinates
      */
     public TwoDimensionalVector getCentroid() {
-        TwoDimensionalVector[] vertices = getVertices();
-        double centerX = 0;
-        double centerY = 0;
-        for (TwoDimensionalVector vertex : vertices) {
-            centerX += vertex.getX();
-            centerY += vertex.getY();
-        }
-        centerX /= getNumberOfSides();
-        centerY /= getNumberOfSides();
-        return new TwoDimensionalVector(centerX, centerY);
+        // Divided by the number of *sides* rather than the number of vertices, which differ for a degenerate
+        // shape (CODE_REVIEW §2.12).
+        return centroidOf(getVertices());
     }
 
     /**
@@ -272,12 +316,26 @@ public class Variable2DShape {
         return points.toArray(new TwoDimensionalVector[points.size()]);
     }
 
+    /**
+     * Two shapes are equal when they have the same number of sides and the same area and perimeter, compared
+     * with a tolerance.
+     * <p>
+     * This used exact double equality on computed values, which is essentially never true, and there was no
+     * {@code hashCode} (CODE_REVIEW §3.15).
+     */
     @Override
     public boolean equals(Object other) {
-        if (other instanceof Variable2DShape) return ((Variable2DShape) other).getNumberOfSides() == getNumberOfSides()
-            && ((Variable2DShape) other).getArea() == getArea()
-            && ((Variable2DShape) other).getPerimeter() == getPerimeter();
-        return false;
+        if (this == other) return true;
+        if (!(other instanceof Variable2DShape)) return false;
+        Variable2DShape shape = (Variable2DShape) other;
+        return shape.getNumberOfSides() == getNumberOfSides() && Math.abs(shape.getArea() - getArea()) <= EPSILON
+            && Math.abs(shape.getPerimeter() - getPerimeter()) <= EPSILON;
+    }
+
+    @Override
+    public int hashCode() {
+        // Consistent with equals: equal shapes necessarily have the same number of sides.
+        return getNumberOfSides();
     }
 
     @Override

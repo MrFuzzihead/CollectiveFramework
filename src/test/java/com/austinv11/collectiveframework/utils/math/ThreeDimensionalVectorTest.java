@@ -1,7 +1,6 @@
 package com.austinv11.collectiveframework.utils.math;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class ThreeDimensionalVectorTest {
@@ -98,7 +97,6 @@ public class ThreeDimensionalVectorTest {
      * CODE_REVIEW §2.11 - {@code normalize()} divides {@code y} by the length twice, so the z component is
      * always equal to the y component.
      */
-    @Ignore("CODE_REVIEW §2.11: normalize() writes y/distance into the z slot")
     @Test
     public void normalizeShouldScaleEveryComponent() {
         ThreeDimensionalVector normalized = new ThreeDimensionalVector(3, 4, 0).normalize();
@@ -112,7 +110,6 @@ public class ThreeDimensionalVectorTest {
      * CODE_REVIEW §2.11 - {@code rotateX} adds {@code center.z} to the new y component instead of
      * {@code center.y}, so it is only correct when the centre lies on the y == z diagonal.
      */
-    @Ignore("CODE_REVIEW §2.11: rotateX translates the y component by center.z")
     @Test
     public void rotateXShouldKeepTheCentreFixed() {
         ThreeDimensionalVector center = new ThreeDimensionalVector(0, 5, 0);
@@ -126,7 +123,6 @@ public class ThreeDimensionalVectorTest {
      * CODE_REVIEW §2.11 - {@code rotateY} adds {@code center.x} to the new z component instead of
      * {@code center.z}, so the centre's z coordinate is not preserved.
      */
-    @Ignore("CODE_REVIEW §2.11: rotateY translates the z component by center.x")
     @Test
     public void rotateYShouldKeepTheCentreFixed() {
         ThreeDimensionalVector center = new ThreeDimensionalVector(0, 0, 5);
@@ -139,7 +135,6 @@ public class ThreeDimensionalVectorTest {
     /**
      * CODE_REVIEW §3.15 - {@code equals} without {@code hashCode}.
      */
-    @Ignore("CODE_REVIEW §3.15: equals without hashCode breaks hash-based collections")
     @Test
     public void equalVectorsShouldHaveEqualHashCodes() {
         Assert.assertEquals(

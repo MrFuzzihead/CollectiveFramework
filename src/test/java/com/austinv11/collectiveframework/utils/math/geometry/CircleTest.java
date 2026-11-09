@@ -1,7 +1,6 @@
 package com.austinv11.collectiveframework.utils.math.geometry;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.austinv11.collectiveframework.utils.math.TwoDimensionalVector;
@@ -70,7 +69,6 @@ public class CircleTest {
      * CODE_REVIEW §2.13 - {@code isPointOnCircumference} compares doubles with {@code ==}, so a point that
      * is mathematically on the circumference but not exactly representable is reported as outside.
      */
-    @Ignore("CODE_REVIEW §2.13: exact double comparison instead of an epsilon")
     @Test
     public void isPointOnCircumferenceShouldTolerateFloatingPointError() throws IncompatibleDimensionsException {
         Circle circle = new Circle(2);

@@ -27,11 +27,9 @@ Java 17+).
 | **Dead code** | ~25 items | Including 4 stale resource files and 4 stale lang keys |
 | **Perf** | 14 | One is a per-frame disk read |
 
-**Fix progress: 38 of 70 closed.** Batch 1 (§1.1, §1.2, §1.3, §1.4, §1.5, §1.18, plus §2.18 and the
-`ITranslationProvider` signature), batch 2 (§1.7, §1.16, §1.17, plus the `fromBytes` half of §3.2),
-batch 3 (§1.8, §1.9, §3.12), batch 4 (§1.11–§1.15, plus the `SimpleRunnable` half of §3.15),
-batch 5 (§3.1, §3.5–§3.8), batch 6 (§1.20, §2.1, §2.2, §2.19, §2.20, §5.1) and batch 7 (§1.6,
-§2.8, §2.9, §3.18) are implemented and covered by tests — see §11.
+**Fix progress: 50 of 70 closed.** Batches 1–7 closed §1.1–§1.9, §1.11–§1.20, §2.1, §2.2,
+§2.8, §2.9, §2.10–§2.13, §2.16, §2.18–§2.20, §3.1, §3.2 (partial), §3.5–§3.8, §3.12–§3.15
+and §5.1. See §11 for what each batch changed.
 
 The single highest-leverage fix is **#1 (event bus)** — it silently disables config sync, the time
 buttons, the key overlay, and book interactivity in one shot. Second is **#2/#3 (config
@@ -1462,7 +1460,7 @@ game.
 |---|---|
 | `addon.gradle.kts` | JaCoCo wiring, coverage floors, `gameTest` source set, `gameTestServer` task, `-PsmokeTest` hook |
 | `dependencies.gradle` | JUnit 4.13.2, Mockito 4.11.0 (`core` + `inline`) |
-| `src/test/java/**` | 405 unit tests (376 active, 29 `@Ignore`d known defects) |
+| `src/test/java/**` | 421 unit tests (413 active, 8 `@Ignore`d known defects) |
 | `src/gameTest/java/**` | `GameTestMod` — 73 in-game assertions, booted by `gameTestServer` |
 | `src/main/java/.../SmokeTestHook.java` | CI-only: exits the JVM with a marker once FML finished loading |
 | `.github/workflows/smoke-test.yml` | server smoke test + in-game game test on every PR |
@@ -1482,16 +1480,18 @@ Both extra source sets are excluded from the published jar.
 
 ### 10.3 Coverage baseline
 
-Measured after batch 7 (§11):
+Measured after batch 8 (§11):
 
 | Counter | Covered / Total | Ratio | Floor |
 |---|---|---|---|
-| Instruction | 7,801 / 17,790 | 43.9% | — |
-| Branch | 822 / 1,857 | 44.3% | 43% |
-| **Line** | 1,396 / 3,500 | **39.9%** | **39%** |
-| Complexity | 724 / 1,738 | 41.7% | — |
-| Method | 381 / 803 | 47.4% | — |
-| Class | 59 / 129 | 45.7% | — |
+| Instruction | 8,252 / 17,993 | 45.9% | — |
+| Branch | 837 / 1,865 | 44.9% | 44% |
+| **Line** | 1,469 / 3,543 | **41.5%** | **40%** |
+| Complexity | 743 / 1,753 | 42.4% | — |
+| Method | 401 / 814 | 49.3% | — |
+| Class | 60 / 130 | 46.2% | — |
+
+`utils/math` and `utils/math/geometry` are now the best-covered packages in the mod.
 
 Per package: `multithreading` **85.8% line / 77.3% branch**, `language` **96.9% line**, `minecraft/threading`
 covered by `MainThreadTest`, `minecraft/network` **40.5% line** (the rest needs a live connection),
@@ -1886,15 +1886,62 @@ migrate.
 Unit tests: 374 → **405** (376 active, 29 `@Ignore`d). Coverage: 38.2% → **39.9%** line, 42.6% →
 **44.3%** branch; floors raised to 39% / 43%.
 
+### Batch 8 — geometry, ratios and array helpers
+
+Twelve findings across the pure-maths surface. All of them were already pinned by `@Ignore`d tests, so
+this batch is mostly "fix the code and delete the marker".
+
+| Review ref | Defect | Fix |
+|---|---|---|
+| **§2.10** | `Line#setEnd(ThreeDimensionalVector)` returned `new Line(coord, end)`, replacing the **start** | Returns `new Line(start, coord)` |
+| **§2.11** | `ThreeDimensionalVector#normalize()` divided `y` by the length twice, so a normalized vector always had `z == y` | `z / distance` |
+| **§2.11** | `rotateX` offset the new y component by `center.z` instead of `center.y`; `rotateY` had its two results swapped and offset both by `center.x`, so the centre's z moved | Both rewritten so each rotation fixes one axis and rotates the other two about the centre: `rotateX` on (y, z), `rotateY` on (z, x), `rotateZ` on (x, y) — the same convention `rotateZ` already used |
+| **§2.12** | `Variable2DShape#getCentroid` divided by the number of **sides** instead of vertices | Divides by the vertex count |
+| **§2.12** | `getAngleForVertex` used `Math.atan` of a slope difference: no quadrant, so an obtuse angle came back acute, and a vertical edge was faked with `Double.MAX_VALUE`, making the denominator infinite and the angle 0 | Computed from the two edge vectors with `acos` of the clamped cosine; returns radians in `[0, π]` |
+| **§2.12** | The varargs constructor called `Arrays.sort(vectors)`, sorting the **caller's** array in place | Sorts a clone |
+| **§2.12** | `getArea` ran the shoelace formula over `getVertices()`, whose order the sorting constructor had already destroyed — a 4×4 square reported an area of **0** | New `getOrderedVertices()` orders them by angle around the centroid; `getArea` uses it |
+| **§2.13** | `Circle#isPointOnCircumference` and `Line#isPointValid` compared doubles with `==`, so a point mathematically on the boundary was reported outside; `Line#getAll2DPoints`/`getAll3DPoints` incremented x *before* adding, emitting one point past the end | `EPSILON` comparisons on both classes; the loops run `startX + 1 .. endX` |
+| **§2.16** | `LogicUtils#xor` used a two-input short circuit, so `xor(true, true, true)` returned `false` | True parity: flip a flag for each true input |
+| **§3.13** | `ArrayUtils#wrappedRetrieve` (all nine overloads) threw `AIOOBE` on a negative index and span forever on a zero-length array; `indexOf(Object[], …)` NPE'd on a null element; `removeRepeats` (all nine overloads) used `List.contains` in a loop, which is O(n²) | Modulo with a negative fix-up plus an explicit empty-array rejection; `Objects.equals`; `LinkedHashSet`, which also preserves first-seen order |
+| **§3.14** | `MathUtils#isWholeNumber` compared `intValue()` with `longValue()`, true for every value that fits in an int — including `3.5`. `findLowestCommonDenominator` returned the **smallest** common divisor at or above 2 and gave up after 1024 iterations, so `Ratio(1920, 1080)` reduced to 960:540 and a 4096×2048 texture never reduced. `getMin`/`getMax` threw `AIOOBE` on empty input | `isWholeNumber` compares against `Math.rint` and rejects NaN/Infinity/null; new `findGreatestCommonDivisor` is Euclidean and unbounded; `findLowestCommonDenominator` is deprecated and delegates; `getMin`/`getMax` throw `IllegalArgumentException` with a message |
+| **§3.14** | `Ratio` divided by that divisor, aliased the caller's array on the un-reduced path, and both getters handed out the internal arrays | Uses `findGreatestCommonDivisor`, copies on construction and on every getter |
+| **§3.15** | `TwoDimensionalVector`, `ThreeDimensionalVector`, `Line` and `Variable2DShape` overrode `equals` without `hashCode`; `Variable2DShape` also compared computed area and perimeter with `==` | `hashCode` added to all four (value-based for the vectors and `Line`, side-count for `Variable2DShape`); `Variable2DShape#equals` compares with a tolerance |
+
+**API changes**
+
+* New: `Line.EPSILON`, `Circle.EPSILON`, `Variable2DShape.EPSILON`, `Variable2DShape#getOrderedVertices()`,
+  `MathUtils#findGreatestCommonDivisor(double...)`.
+* `MathUtils#findLowestCommonDenominator` and `MathUtils#MAX_PASSES` are `@Deprecated`; both still exist.
+* `MathUtils#getMin`/`getMax` throw `IllegalArgumentException` instead of `ArrayIndexOutOfBoundsException`
+  on empty input.
+* `Ratio#getOriginalRatio`/`getReducedRatio` return copies.
+* `Variable2DShape#getAngleForVertex` returns radians in `[0, π]` rather than `[0, π/2]` — an obtuse vertex
+  used to be reported as its supplement.
+
+**Tests**
+
+All fourteen `@Ignore` markers in `utils/math`, `utils/math/geometry`, `utils/ArrayUtilsTest` and
+`utils/LogicUtilsTest` were removed; the tests they guarded now pass and act as regression guards.
+`MathUtilsTest` and `RatioTest` were rewritten (the old versions pinned the buggy behaviour), and
+`Variable2DShapeTest` gained seven new cases: `hashCode` agreement, unequal areas, right/obtuse/vertical-edge
+vertex angles, rejection of a non-vertex, and a check that `getOrderedVertices()` really traces the
+polygon.
+
+One flaky test was fixed along the way: `SimpleRunnableTest#aDisabledRunnableDoesNotOccupyAWorker`
+asserted an absolute zero against the **shared** executor's active count, which another test class could
+legitimately be using. It is now relative to a baseline taken before the runnable starts.
+
+Unit tests: 405 → **421** (413 active, 8 `@Ignore`d). Coverage: 39.9% → **41.5%** line, 44.3% →
+**44.9%** branch; floors raised to 40% / 44%.
+
 ### Remaining batches
 
-Still open: the HTTP and `FileUtils` robustness items (§3.4, §3.9), the geometry and `MathUtils`
-correctness items (§2.10–§2.16, §3.13, §3.14), `Entry extends GuiScreen` (§2.23–§2.25), the
-remaining performance items in §5, and the dead-code cleanup in §4.
+Still open: the HTTP and `FileUtils` robustness items (§3.4, §3.9), `Location.hashCode` and
+`StructureCreator`'s metadata map (§2.14, §2.15), `ReflectionUtils`' object (de)serialisation (§2.6,
+§2.7), `Encryption`'s lossy ciphertext round trip (§1.19), `StringUtils` (§1.10, §3.14), the
+`Entry extends GuiScreen` design (§2.23–§2.25), the remaining performance items in §5, and the
+dead-code cleanup in §4.
 
-Two book-API items were deliberately left out of batch 6 because they cannot be verified without a GL
-context, so they would be untested changes: `ImageEntry`'s scaling pivot (§2.23) and making `Entry` a
-plain object instead of a `GuiScreen` (§2.24). Both need a client-side visual check.
-
-The geometry/`MathUtils` cluster is now the largest remaining group of pure-logic defects and is entirely
-unit-testable, so it is the natural next batch.
+Two items were deliberately left out of batch 6 because they cannot be verified without a GL context, so
+they would be untested changes: `ImageEntry`'s scaling pivot (§2.23) and making `Entry` a plain object
+instead of a `GuiScreen` (§2.24). Both need a client-side visual check.

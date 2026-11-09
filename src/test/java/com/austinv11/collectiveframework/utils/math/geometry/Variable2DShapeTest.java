@@ -1,7 +1,6 @@
 package com.austinv11.collectiveframework.utils.math.geometry;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.austinv11.collectiveframework.utils.math.TwoDimensionalVector;
@@ -118,7 +117,6 @@ public class Variable2DShapeTest {
      * CODE_REVIEW §2.12 - the varargs constructor calls {@code Arrays.sort(vectors)}, which sorts the
      * caller's array in place.
      */
-    @Ignore("CODE_REVIEW §2.12: the varargs constructor mutates the caller's array")
     @Test
     public void constructorShouldNotMutateTheCallersArray() throws IncompatibleDimensionsException {
         TwoDimensionalVector[] vertices = { new TwoDimensionalVector(4, 3), new TwoDimensionalVector(0, 0),
@@ -133,7 +131,6 @@ public class Variable2DShapeTest {
      * with more than three vertices that is not convex-and-monotonic in x, the resulting traversal is
      * self-intersecting and the area is wrong. A 4x4 square reports 0.
      */
-    @Ignore("CODE_REVIEW §2.12: getArea depends on vertex order, which the constructor destroys")
     @Test
     public void areaOfASquareShouldBeSixteen() throws IncompatibleDimensionsException {
         Variable2DShape square = new Variable2DShape(
@@ -148,9 +145,83 @@ public class Variable2DShapeTest {
      * CODE_REVIEW §3.15 - {@code equals} compares floating-point area and perimeter with {@code ==} and has
      * no {@code hashCode}.
      */
-    @Ignore("CODE_REVIEW §3.15: equals compares doubles with == and has no hashCode")
     @Test
     public void equalShapesShouldBeEqual() throws IncompatibleDimensionsException {
         Assert.assertEquals(rightTriangle(), rightTriangle());
+    }
+
+    @Test
+    public void equalShapesShareAHashCode() throws IncompatibleDimensionsException {
+        Assert.assertEquals(rightTriangle().hashCode(), rightTriangle().hashCode());
+    }
+
+    @Test
+    public void shapesWithADifferentAreaAreNotEqual() throws IncompatibleDimensionsException {
+        Assert.assertNotEquals(rightTriangle(), scaleneTriangle());
+    }
+
+    // ------------------------------------------------------------------------------ vertex angles
+
+    @Test
+    public void angleOfARightAngleVertexIsHalfPi() throws IncompatibleDimensionsException {
+        // Edges from (4,0): (-4,0) and (0,3), which are perpendicular.
+        Assert.assertEquals(
+            (float) (Math.PI / 2),
+            rightTriangle().getAngleForVertex(new TwoDimensionalVector(4, 0)),
+            1.0E-5f);
+    }
+
+    /**
+     * CODE_REVIEW §2.12 (fixed) - the slope-based version used {@code Math.atan}, which has no quadrant, so an
+     * obtuse interior angle came back acute.
+     */
+    @Test
+    public void angleOfAnObtuseVertexIsReflexFreeButObtuse() throws IncompatibleDimensionsException {
+        // Vertex (2,1) of the triangle (0,0), (2,1), (4,0): edges (-2,-1) and (2,-1), cos = -3/5.
+        Variable2DShape shape = new Variable2DShape(
+            new TwoDimensionalVector(0, 0),
+            new TwoDimensionalVector(4, 0),
+            new TwoDimensionalVector(2, 1));
+        float angle = shape.getAngleForVertex(new TwoDimensionalVector(2, 1));
+
+        Assert.assertTrue("expected an obtuse angle, got " + angle, angle > Math.PI / 2);
+        Assert.assertEquals((float) Math.acos(-0.6), angle, 1.0E-5f);
+    }
+
+    /**
+     * CODE_REVIEW §2.12 (fixed) - a vertical edge was faked with {@code Double.MAX_VALUE}, which made the
+     * denominator infinite and the angle 0.
+     */
+    @Test
+    public void angleWithAVerticalEdgeIsWellDefined() throws IncompatibleDimensionsException {
+        Variable2DShape shape = new Variable2DShape(
+            new TwoDimensionalVector(0, 0),
+            new TwoDimensionalVector(0, 4),
+            new TwoDimensionalVector(4, 0));
+        Assert.assertEquals((float) (Math.PI / 2), shape.getAngleForVertex(new TwoDimensionalVector(0, 0)), 1.0E-5f);
+    }
+
+    @Test(expected = IncompatibleDimensionsException.class)
+    public void angleOfANonVertexIsRejected() throws IncompatibleDimensionsException {
+        rightTriangle().getAngleForVertex(new TwoDimensionalVector(1, 1));
+    }
+
+    @Test
+    public void orderedVerticesTraceThePolygon() throws IncompatibleDimensionsException {
+        Variable2DShape square = new Variable2DShape(
+            new TwoDimensionalVector(0, 0),
+            new TwoDimensionalVector(0, 4),
+            new TwoDimensionalVector(4, 4),
+            new TwoDimensionalVector(4, 0));
+        TwoDimensionalVector[] ordered = square.getOrderedVertices();
+
+        Assert.assertEquals(4, ordered.length);
+        // Consecutive vertices must be adjacent corners of the square, i.e. one coordinate apart.
+        for (int i = 0; i < ordered.length; i++) {
+            TwoDimensionalVector a = ordered[i];
+            TwoDimensionalVector b = ordered[(i + 1) % ordered.length];
+            double delta = Math.abs(a.getX() - b.getX()) + Math.abs(a.getY() - b.getY());
+            Assert.assertEquals("vertices " + i + " and " + (i + 1) + " are not adjacent", 4d, delta, EPSILON);
+        }
     }
 }

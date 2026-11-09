@@ -109,14 +109,16 @@ public class ThreeDimensionalVector implements Comparable {
     }
 
     /**
-     * Normalizes the vector to a length of 1 (all coords add up to one)
-     * 
+     * Normalizes the vector to a length of 1.
+     *
      * @return Normalized vector
      */
     public ThreeDimensionalVector normalize() {
         double distance = Math.sqrt(dotProduct());
+        // The z component used to be y / distance as well, so a normalized vector always had z == y
+        // (CODE_REVIEW §2.11).
         return distance < 1.0E-4D ? new ThreeDimensionalVector(0, 0, 0)
-            : new ThreeDimensionalVector(x / distance, y / distance, y / distance);
+            : new ThreeDimensionalVector(x / distance, y / distance, z / distance);
     }
 
     /**
@@ -192,12 +194,15 @@ public class ThreeDimensionalVector implements Comparable {
      * @return The rotated vector
      */
     public ThreeDimensionalVector rotateX(ThreeDimensionalVector center, double angle) {
+        double sin = Math.sin(Math.toRadians(angle));
+        double cos = Math.cos(Math.toRadians(angle));
+        // Rotates the (y, z) pair and leaves x alone. The y component used to be offset by center.z instead of
+        // center.y, so the rotation was only correct when the centre lay on the y == z diagonal
+        // (CODE_REVIEW §2.11).
         return new ThreeDimensionalVector(
             x,
-            Math.cos(Math.toRadians(angle)) * (y - center.y) - Math.sin(Math.toRadians(angle)) * (z - center.z)
-                + center.z,
-            Math.sin(Math.toRadians(angle)) * (y - center.y) + Math.cos(Math.toRadians(angle)) * (z - center.z)
-                + center.z);
+            cos * (y - center.y) - sin * (z - center.z) + center.y,
+            sin * (y - center.y) + cos * (z - center.z) + center.z);
     }
 
     /**
@@ -218,12 +223,15 @@ public class ThreeDimensionalVector implements Comparable {
      * @return The rotated vector
      */
     public ThreeDimensionalVector rotateY(ThreeDimensionalVector center, double angle) {
+        double sin = Math.sin(Math.toRadians(angle));
+        double cos = Math.cos(Math.toRadians(angle));
+        // Rotates the (z, x) pair and leaves y alone, matching rotateX on (y, z) and rotateZ on (x, y). The
+        // previous version had the two results swapped and offset both by center.x, so the centre's z moved
+        // (CODE_REVIEW §2.11).
         return new ThreeDimensionalVector(
-            Math.cos(Math.toRadians(angle)) * (z - center.z) - Math.sin(Math.toRadians(angle)) * (x - center.x)
-                + center.x,
+            sin * (z - center.z) + cos * (x - center.x) + center.x,
             y,
-            Math.sin(Math.toRadians(angle)) * (z - center.z) + Math.cos(Math.toRadians(angle)) * (x - center.x)
-                + center.x);
+            cos * (z - center.z) - sin * (x - center.x) + center.z);
     }
 
     /**
@@ -273,10 +281,24 @@ public class ThreeDimensionalVector implements Comparable {
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof ThreeDimensionalVector)
-            return ((ThreeDimensionalVector) other).x == x && ((ThreeDimensionalVector) other).y == y
-                && ((ThreeDimensionalVector) other).z == z;
-        return false;
+        if (this == other) return true;
+        if (!(other instanceof ThreeDimensionalVector)) return false;
+        ThreeDimensionalVector vector = (ThreeDimensionalVector) other;
+        return vector.x == x && vector.y == y && vector.z == z;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * {@code equals} was overridden without a matching {@code hashCode}, so two value-equal vectors hashed to
+     * different buckets and could not be used as map keys (CODE_REVIEW §3.15).
+     */
+    @Override
+    public int hashCode() {
+        long bits = Double.doubleToLongBits(x);
+        bits = 31 * bits + Double.doubleToLongBits(y);
+        bits = 31 * bits + Double.doubleToLongBits(z);
+        return (int) (bits ^ (bits >>> 32));
     }
 
     @Override

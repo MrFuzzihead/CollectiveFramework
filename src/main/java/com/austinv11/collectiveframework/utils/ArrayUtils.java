@@ -1,8 +1,6 @@
 package com.austinv11.collectiveframework.utils;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * A class with helpful methods for handling arrays
@@ -18,7 +16,8 @@ public class ArrayUtils {
      */
     public static int indexOf(Object[] array, Object key) {
         for (int i = 0; i < array.length; i++) {
-            if (array[i].equals(key)) return i;
+            // Used to NPE on a null element (CODE_REVIEW §3.13).
+            if (java.util.Objects.equals(array[i], key)) return i;
         }
         return -1;
     }
@@ -145,7 +144,7 @@ public class ArrayUtils {
      */
     public static int indexOf(Object[] array, Object key, int startIndex) {
         for (int i = startIndex; i < array.length; i++) {
-            if (array[i].equals(key)) return i;
+            if (java.util.Objects.equals(array[i], key)) return i;
         }
         return -1;
     }
@@ -278,9 +277,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static <T> T wrappedRetrieve(T[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -291,9 +293,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static byte wrappedRetrieve(byte[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -304,9 +309,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static short wrappedRetrieve(short[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -317,9 +325,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static int wrappedRetrieve(int[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -330,9 +341,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static long wrappedRetrieve(long[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -343,9 +357,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static float wrappedRetrieve(float[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -356,9 +373,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static double wrappedRetrieve(double[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -369,9 +389,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static boolean wrappedRetrieve(boolean[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -382,9 +405,12 @@ public class ArrayUtils {
      * @return The value
      */
     public static char wrappedRetrieve(char[] array, int index) {
-        if (index < array.length) return array[index];
-        while (index >= array.length) index -= array.length;
-        return array[index];
+        // A negative index used to fall straight through to array[index] and throw, and a zero-length array
+        // made the wrapping loop spin forever (CODE_REVIEW §3.13).
+        if (array.length == 0) throw new IllegalArgumentException("Cannot wrap around an empty array");
+        int wrapped = index % array.length;
+        if (wrapped < 0) wrapped += array.length;
+        return array[wrapped];
     }
 
     /**
@@ -394,9 +420,9 @@ public class ArrayUtils {
      * @return The new array
      */
     public static <T> T[] removeRepeats(T[] array) {
-        List<T> cache = new ArrayList<T>();
-        for (T o : array) if (!cache.contains(o)) cache.add(o);
-        return cache.toArray(Arrays.copyOf(array, cache.size()));
+        // List.contains in a loop was O(n^2) (CODE_REVIEW §3.13); a LinkedHashSet keeps first-seen order in O(n).
+        java.util.Set<T> unique = new java.util.LinkedHashSet<T>(Arrays.asList(array));
+        return unique.toArray(Arrays.copyOf(array, unique.size()));
     }
 
     /**
@@ -406,11 +432,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static byte[] removeRepeats(byte[] array) {
-        List<Byte> cache = new ArrayList<Byte>();
-        for (Byte o : array) if (!cache.contains(o)) cache.add(o);
-        Byte[] objArray = cache.toArray(new Byte[cache.size()]);
-        byte[] newArray = new byte[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Byte> unique = new java.util.LinkedHashSet<Byte>(array.length);
+        for (byte value : array) unique.add(value);
+        byte[] newArray = new byte[unique.size()];
+        int i = 0;
+        for (Byte value : unique) newArray[i++] = value;
         return newArray;
     }
 
@@ -421,11 +447,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static short[] removeRepeats(short[] array) {
-        List<Short> cache = new ArrayList<Short>();
-        for (Short o : array) if (!cache.contains(o)) cache.add(o);
-        Short[] objArray = cache.toArray(new Short[cache.size()]);
-        short[] newArray = new short[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Short> unique = new java.util.LinkedHashSet<Short>(array.length);
+        for (short value : array) unique.add(value);
+        short[] newArray = new short[unique.size()];
+        int i = 0;
+        for (Short value : unique) newArray[i++] = value;
         return newArray;
     }
 
@@ -436,11 +462,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static int[] removeRepeats(int[] array) {
-        List<Integer> cache = new ArrayList<Integer>();
-        for (Integer o : array) if (!cache.contains(o)) cache.add(o);
-        Integer[] objArray = cache.toArray(new Integer[cache.size()]);
-        int[] newArray = new int[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Integer> unique = new java.util.LinkedHashSet<Integer>(array.length);
+        for (int value : array) unique.add(value);
+        int[] newArray = new int[unique.size()];
+        int i = 0;
+        for (Integer value : unique) newArray[i++] = value;
         return newArray;
     }
 
@@ -451,11 +477,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static long[] removeRepeats(long[] array) {
-        List<Long> cache = new ArrayList<Long>();
-        for (Long o : array) if (!cache.contains(o)) cache.add(o);
-        Long[] objArray = cache.toArray(new Long[cache.size()]);
-        long[] newArray = new long[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Long> unique = new java.util.LinkedHashSet<Long>(array.length);
+        for (long value : array) unique.add(value);
+        long[] newArray = new long[unique.size()];
+        int i = 0;
+        for (Long value : unique) newArray[i++] = value;
         return newArray;
     }
 
@@ -466,11 +492,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static float[] removeRepeats(float[] array) {
-        List<Float> cache = new ArrayList<Float>();
-        for (Float o : array) if (!cache.contains(o)) cache.add(o);
-        Float[] objArray = cache.toArray(new Float[cache.size()]);
-        float[] newArray = new float[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Float> unique = new java.util.LinkedHashSet<Float>(array.length);
+        for (float value : array) unique.add(value);
+        float[] newArray = new float[unique.size()];
+        int i = 0;
+        for (Float value : unique) newArray[i++] = value;
         return newArray;
     }
 
@@ -481,11 +507,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static double[] removeRepeats(double[] array) {
-        List<Double> cache = new ArrayList<Double>();
-        for (Double o : array) if (!cache.contains(o)) cache.add(o);
-        Double[] objArray = cache.toArray(new Double[cache.size()]);
-        double[] newArray = new double[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Double> unique = new java.util.LinkedHashSet<Double>(array.length);
+        for (double value : array) unique.add(value);
+        double[] newArray = new double[unique.size()];
+        int i = 0;
+        for (Double value : unique) newArray[i++] = value;
         return newArray;
     }
 
@@ -496,11 +522,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static boolean[] removeRepeats(boolean[] array) {
-        List<Boolean> cache = new ArrayList<Boolean>();
-        for (Boolean o : array) if (!cache.contains(o)) cache.add(o);
-        Boolean[] objArray = cache.toArray(new Boolean[cache.size()]);
-        boolean[] newArray = new boolean[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Boolean> unique = new java.util.LinkedHashSet<Boolean>(array.length);
+        for (boolean value : array) unique.add(value);
+        boolean[] newArray = new boolean[unique.size()];
+        int i = 0;
+        for (Boolean value : unique) newArray[i++] = value;
         return newArray;
     }
 
@@ -511,11 +537,11 @@ public class ArrayUtils {
      * @return The new array
      */
     public static char[] removeRepeats(char[] array) {
-        List<Character> cache = new ArrayList<Character>();
-        for (Character o : array) if (!cache.contains(o)) cache.add(o);
-        Character[] objArray = cache.toArray(new Character[cache.size()]);
-        char[] newArray = new char[objArray.length];
-        for (int i = 0; i < objArray.length; i++) newArray[i] = objArray[i];
+        java.util.Set<Character> unique = new java.util.LinkedHashSet<Character>(array.length);
+        for (char value : array) unique.add(value);
+        char[] newArray = new char[unique.size()];
+        int i = 0;
+        for (Character value : unique) newArray[i++] = value;
         return newArray;
     }
 

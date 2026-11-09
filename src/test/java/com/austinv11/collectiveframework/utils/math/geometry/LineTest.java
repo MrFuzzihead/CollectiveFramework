@@ -3,7 +3,6 @@ package com.austinv11.collectiveframework.utils.math.geometry;
 import java.util.List;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.austinv11.collectiveframework.utils.math.ThreeDimensionalVector;
@@ -121,7 +120,6 @@ public class LineTest {
      * CODE_REVIEW §2.10 - {@code setEnd(ThreeDimensionalVector)} builds {@code new Line(coord, end)}, which
      * replaces the *start* instead of the end.
      */
-    @Ignore("CODE_REVIEW §2.10: setEnd(ThreeDimensionalVector) replaces the start")
     @Test
     public void setEndShouldReplaceTheEndPoint() {
         Line updated = diagonal().setEnd(new TwoDimensionalVector(4, 4));
@@ -133,7 +131,6 @@ public class LineTest {
      * CODE_REVIEW §2.13 / Line: {@code getAll2DPoints} increments x before adding, so it emits one point
      * past the end of the segment.
      */
-    @Ignore("CODE_REVIEW §2.13: getAll2DPoints overshoots the segment by one x")
     @Test
     public void getAll2DPointsShouldStopAtTheEnd() {
         List<TwoDimensionalVector> points = diagonal().getAll2DPoints();
@@ -144,7 +141,6 @@ public class LineTest {
     /**
      * CODE_REVIEW §3.15 - {@code equals} without {@code hashCode}.
      */
-    @Ignore("CODE_REVIEW §3.15: equals without hashCode breaks hash-based collections")
     @Test
     public void equalLinesShouldHaveEqualHashCodes() {
         Assert.assertEquals(diagonal().hashCode(), diagonal().hashCode());

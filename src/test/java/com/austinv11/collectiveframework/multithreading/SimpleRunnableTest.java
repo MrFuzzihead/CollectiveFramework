@@ -128,19 +128,27 @@ public class SimpleRunnableTest {
     /**
      * §1.13 - a disabled runnable must not keep a worker busy. The old loop spun forever without calling
      * {@code run()}, so an invocation count alone would not catch it; this checks the executor itself.
+     * <p>
+     * {@code getActiveTaskCount()} is a count over the whole shared pool, and other test classes hand work to it
+     * too, so the assertion is relative to a baseline taken before this runnable starts rather than an absolute
+     * zero.
      */
     @Test
     public void aDisabledRunnableDoesNotOccupyAWorker() throws Exception {
         CountingRunnable runnable = track(new CountingRunnable(2));
+        int baseline = SimpleRunnable.getActiveTaskCount();
+
         runnable.start();
         await(runnable.reached);
         runnable.disable(true);
 
         long deadline = System.currentTimeMillis() + 5000L;
-        while (SimpleRunnable.getActiveTaskCount() > 0 && System.currentTimeMillis() < deadline) {
+        while (SimpleRunnable.getActiveTaskCount() > baseline && System.currentTimeMillis() < deadline) {
             Thread.sleep(10);
         }
-        Assert.assertEquals("a worker is still busy after disable()", 0, SimpleRunnable.getActiveTaskCount());
+        Assert.assertTrue(
+            "a worker is still busy after disable(): " + SimpleRunnable.getActiveTaskCount() + " > " + baseline,
+            SimpleRunnable.getActiveTaskCount() <= baseline);
     }
 
     @Test

@@ -7,6 +7,9 @@ import com.austinv11.collectiveframework.utils.math.TwoDimensionalVector;
  */
 public class Circle {
 
+    /** Tolerance for "is this point on the circle" tests, which used exact double equality. */
+    public static final double EPSILON = 1.0E-9D;
+
     private TwoDimensionalVector center;
     private double radius;
 
@@ -111,8 +114,9 @@ public class Circle {
      * @return If the point is on the circumference
      */
     public boolean isPointOnCircumference(TwoDimensionalVector point) {
-        return Math.sqrt(Math.pow((point.getX() - center.getX()), 2) + Math.pow((point.getY() - center.getY()), 2))
-            == radius;
+        // Exact double equality meant this was almost always false, which in turn made isPointInCircle treat
+        // the boundary as outside (CODE_REVIEW §2.13).
+        return Math.abs(point.distanceTo(center) - radius) <= EPSILON;
     }
 
     /**

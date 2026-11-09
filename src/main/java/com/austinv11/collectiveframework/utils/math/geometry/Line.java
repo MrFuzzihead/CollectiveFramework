@@ -11,6 +11,9 @@ import com.austinv11.collectiveframework.utils.math.TwoDimensionalVector;
  */
 public class Line {
 
+    /** Tolerance for "is this point on the line" tests, which used exact double equality. */
+    public static final double EPSILON = 1.0E-9D;
+
     private ThreeDimensionalVector start, end;
 
     /**
@@ -162,9 +165,11 @@ public class Line {
     public boolean isPointValid(TwoDimensionalVector coord) {
         if (Double.isNaN(get2DSlope())) return ((coord.getY() <= start.getY() && coord.getY() >= end.getY())
             || (coord.getY() >= start.getY() && coord.getY() <= end.getY()));
+        // The y comparison used exact double equality, so a point that was mathematically on the line but not
+        // exactly representable was reported as off it (CODE_REVIEW §2.13).
         return ((coord.getX() <= start.getX() && coord.getX() >= end.getX())
             || (coord.getX() >= start.getX() && coord.getX() <= end.getX())) && // If point is within bounds of the line
-            (find2DPoint(coord.getX()).getY() == coord.getY()); // If the point follows the rules of the line
+            (Math.abs(find2DPoint(coord.getX()).getY() - coord.getY()) <= EPSILON); // If the point follows the line
     }
 
     /**
@@ -188,9 +193,10 @@ public class Line {
                 }
             }
         } else {
-            while (!(x > end.getRoundedX())) {
-                x++;
-                vectors.add(find2DPoint(x));
+            // This used to increment x *before* adding, so it emitted one point past the end of the segment
+            // (CODE_REVIEW §2.13).
+            for (int pointX = x + 1; pointX <= end.getRoundedX(); pointX++) {
+                vectors.add(find2DPoint(pointX));
             }
         }
         return vectors;
@@ -233,17 +239,11 @@ public class Line {
      * @return If it's on the line
      */
     public boolean isPointValid(ThreeDimensionalVector coord) {
+        ThreeDimensionalVector onLine = find3DPoint(coord.getX());
         return ((coord.getX() <= start.getX() && coord.getX() >= end.getX())
-            || (coord.getX() >= start.getX() && coord.getX() <= end.getX())) && // If point is within bounds of the line
-            (find3DPoint(coord.getX()).getY() == coord.getY() && find3DPoint(coord.getX()).getZ() == coord.getZ()); // If
-                                                                                                                    // the
-                                                                                                                    // point
-                                                                                                                    // follows
-                                                                                                                    // the
-                                                                                                                    // rules
-                                                                                                                    // of
-                                                                                                                    // the
-                                                                                                                    // line
+            || (coord.getX() >= start.getX() && coord.getX() <= end.getX()))
+            && Math.abs(onLine.getY() - coord.getY()) <= EPSILON
+            && Math.abs(onLine.getZ() - coord.getZ()) <= EPSILON;
     }
 
     /**
@@ -274,9 +274,8 @@ public class Line {
                 }
             }
         } else {
-            while (!(x > end.getRoundedX())) {
-                x++;
-                vectors.add(find3DPoint(x));
+            for (int pointX = x + 1; pointX <= end.getRoundedX(); pointX++) {
+                vectors.add(find3DPoint(pointX));
             }
         }
         return vectors;
@@ -340,7 +339,8 @@ public class Line {
      * @return The new, modified line
      */
     public Line setEnd(ThreeDimensionalVector coord) {
-        return new Line(coord, end);
+        // This used to be new Line(coord, end), which replaced the *start* point (CODE_REVIEW §2.10).
+        return new Line(start, coord);
     }
 
     /**
@@ -439,8 +439,20 @@ public class Line {
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof Line) return ((Line) other).start.equals(start) && ((Line) other).end.equals(end);
-        return false;
+        if (this == other) return true;
+        if (!(other instanceof Line)) return false;
+        Line line = (Line) other;
+        return line.start.equals(start) && line.end.equals(end);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * {@code equals} was overridden without a matching {@code hashCode} (CODE_REVIEW §3.15).
+     */
+    @Override
+    public int hashCode() {
+        return 31 * start.hashCode() + end.hashCode();
     }
 
     @Override
