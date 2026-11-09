@@ -25,15 +25,6 @@ public class Logger {
     }
 
     /**
-     * Logs a message at the ALL level
-     *
-     * @param object The object to log
-     */
-    public void all(Object object) {
-        log(Level.ALL, object);
-    }
-
-    /**
      * Logs a message at the DEBUG level
      *
      * @param object The object to log
@@ -67,15 +58,6 @@ public class Logger {
      */
     public void info(Object object) {
         log(Level.INFO, object);
-    }
-
-    /**
-     * Logs a message at the OFF level
-     *
-     * @param object The object to log
-     */
-    public void off(Object object) {
-        log(Level.OFF, object);
     }
 
     /**

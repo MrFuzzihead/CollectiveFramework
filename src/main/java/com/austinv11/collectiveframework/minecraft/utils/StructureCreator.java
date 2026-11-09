@@ -9,9 +9,14 @@ import net.minecraft.block.Block;
  */
 public class StructureCreator {
 
-    private HashMap<Location, Block> blocks = new HashMap<Location, Block>();
-    private HashMap<Block, Integer> metas = new HashMap<Block, Integer>();
-    private HashMap<Location, ICheckBlockValidity> errorCheckers = new HashMap<Location, ICheckBlockValidity>();
+    private final HashMap<Location, Block> blocks = new HashMap<Location, Block>();
+    /**
+     * Metadata, keyed by position. This used to be keyed by {@link Block}, so two placements of the same block
+     * with different metadata collided and both generated with whichever meta was added last
+     * (CODE_REVIEW §2.15).
+     */
+    private final HashMap<Location, Integer> metas = new HashMap<Location, Integer>();
+    private final HashMap<Location, ICheckBlockValidity> errorCheckers = new HashMap<Location, ICheckBlockValidity>();
 
     /**
      * Adds a block to the structure with the default implementation of
@@ -51,7 +56,7 @@ public class StructureCreator {
         if (!blocks.containsKey(location)) {
             blocks.put(location, block);
             errorCheckers.put(location, validityChecker);
-            metas.put(block, meta);
+            metas.put(location, meta);
         }
     }
 
@@ -63,9 +68,14 @@ public class StructureCreator {
     public boolean isStructureValid() {
         for (Location l : blocks.keySet()) {
             if (!errorCheckers.get(l)
-                .canStructureGenerate(blocks.get(l), metas.get(blocks.get(l)), l)) return false;
+                .canStructureGenerate(blocks.get(l), metaAt(l), l)) return false;
         }
         return true;
+    }
+
+    private int metaAt(Location location) {
+        Integer meta = metas.get(location);
+        return meta == null ? 0 : meta;
     }
 
     /**
@@ -96,15 +106,9 @@ public class StructureCreator {
         if (!forceNonOptionalBlocks && !isStructureValid()) return;
         for (Location l : blocks.keySet()) {
             if (errorCheckers.get(l)
-                .isBlockValid(blocks.get(l), metas.get(blocks.get(l)), l) || forceOptionalBlocks)
+                .isBlockValid(blocks.get(l), metaAt(l), l) || forceOptionalBlocks)
                 l.getWorld()
-                    .setBlock(
-                        l.getRoundedX(),
-                        l.getRoundedY(),
-                        l.getRoundedZ(),
-                        blocks.get(l),
-                        metas.get(blocks.get(l)),
-                        2);
+                    .setBlock(l.getRoundedX(), l.getRoundedY(), l.getRoundedZ(), blocks.get(l), metaAt(l), 2);
         }
     }
 

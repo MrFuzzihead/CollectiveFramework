@@ -103,36 +103,60 @@ public class Location extends ThreeDimensionalVector {
      */
     public HashMap<String, Double> getPlayers(double range) {
         HashMap<String, Double> map = new HashMap<String, Double>();
+        if (world == null) return map;
         for (EntityPlayer player : (Iterable<EntityPlayer>) world.playerEntities) {
-            if (new Location(player).distanceTo(this) <= range) {
-                map.put(player.getDisplayName(), new Location(player).distanceTo(this));
-            }
+            // The distance was computed twice per player, allocating a Location each time.
+            double distance = new Location(player).distanceTo(this);
+            if (distance <= range) map.put(player.getDisplayName(), distance);
         }
         return map;
     }
 
     /**
-     * Converts this into a chunk coordinats object
+     * Converts this into a chunk coordinates object.
      *
      * @return The chunk coordinates
+     * @deprecated Duplicate of {@link #chunkCoordsFromLocation()}; use that instead. Kept as a delegating alias
+     *             so existing callers keep working (CODE_REVIEW §4.1).
      */
+    @Deprecated
     public ChunkCoordinates toChunkCoordinates() {
-        return new ChunkCoordinates(getRoundedX(), getRoundedY(), getRoundedZ());
+        return chunkCoordsFromLocation();
     }
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof Location) {
-            return ((Location) other).getRoundedX() == getRoundedX()
-                && ((Location) other).getRoundedY() == getRoundedY()
-                && ((Location) other).getRoundedZ() == getRoundedZ()
-                && ((Location) other).getWorld().provider.dimensionId == getWorld().provider.dimensionId;
-        }
-        return false;
+        if (this == other) return true;
+        if (!(other instanceof Location)) return false;
+        Location location = (Location) other;
+        // getWorld().provider was dereferenced directly, so comparing a Location with a null world threw
+        // (CODE_REVIEW §2.14).
+        return location.getRoundedX() == getRoundedX() && location.getRoundedY() == getRoundedY()
+            && location.getRoundedZ() == getRoundedZ()
+            && location.dimensionId() == dimensionId();
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This returned a constant 0, so every {@link Location} landed in the same hash bucket: any
+     * {@code HashMap} keyed by a location degraded to a linked list, which made {@code StructureCreator}'s
+     * three maps O(n²) in the number of blocks (CODE_REVIEW §2.14).
+     */
     @Override
-    public int hashCode() { // Done to allow for use as keys in HashMaps
-        return 0;
+    public int hashCode() {
+        int result = getRoundedX();
+        result = 31 * result + getRoundedY();
+        result = 31 * result + getRoundedZ();
+        result = 31 * result + dimensionId();
+        return result;
+    }
+
+    /**
+     * @return The dimension this location is in, or {@link Integer#MIN_VALUE} if it has no world
+     */
+    private int dimensionId() {
+        if (world == null || world.provider == null) return Integer.MIN_VALUE;
+        return world.provider.dimensionId;
     }
 }

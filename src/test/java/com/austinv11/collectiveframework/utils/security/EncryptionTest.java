@@ -1,9 +1,6 @@
 package com.austinv11.collectiveframework.utils.security;
 
-import java.nio.charset.StandardCharsets;
-
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class EncryptionTest {
@@ -67,7 +64,6 @@ public class EncryptionTest {
      * charset and {@code decrypt} converts it back with {@code String.getBytes()}. The conversion is lossy,
      * so the round trip cannot work for arbitrary binary ciphertext.
      */
-    @Ignore("CODE_REVIEW §1.19: ciphertext is round-tripped through a lossy String conversion")
     @Test
     public void aesRoundTrip() throws Exception {
         byte[] key = new byte[16];
@@ -87,17 +83,60 @@ public class EncryptionTest {
      * CODE_REVIEW §1.19 - {@code encrypt} also wraps the whole output buffer, including the zero padding
      * past {@code encryptionLength}, in the returned string.
      */
-    @Ignore("CODE_REVIEW §1.19: new String(encrypted) covers bytes beyond encryptionLength")
     @Test
     public void encryptShouldNotIncludeTrailingPadding() throws Exception {
         byte[] key = new byte[16];
         byte[] iv = new byte[16];
         SecretValue<String, byte[], Integer> encrypted = Encryption.encrypt("hello", "AES/CBC/PKCS5Padding", key, iv);
-        byte[] cipherText = Encryption.getValue(encrypted)
-            .getBytes(StandardCharsets.ISO_8859_1);
+        byte[] cipherText = java.util.Base64.getDecoder()
+            .decode(Encryption.getValue(encrypted));
         Assert.assertEquals(
             Encryption.getMeta(encrypted)
                 .intValue(),
             cipherText.length);
+    }
+
+    /** §1.19 - the ciphertext is Base64 now, so it must survive non-ASCII plaintext. */
+    @Test
+    public void aesRoundTripWithNonAsciiText() throws Exception {
+        byte[] key = new byte[16];
+        byte[] iv = new byte[16];
+        String plain = "h\u00e9llo w\u00f6rld \u4f60\u597d";
+
+        SecretValue<String, byte[], Integer> encrypted = Encryption.encrypt(plain, "AES/CBC/PKCS5Padding", key, iv);
+        SecretValue<String, byte[], Integer> decrypted = Encryption
+            .decrypt(Encryption.getValue(encrypted), Encryption.getMeta(encrypted), "AES/CBC/PKCS5Padding", key, iv);
+
+        Assert.assertEquals(plain, Encryption.getValue(decrypted));
+    }
+
+    @Test
+    public void aesRoundTripWithABlockAlignedPlaintext() throws Exception {
+        byte[] key = new byte[16];
+        byte[] iv = new byte[16];
+        String plain = "0123456789abcdef"; // exactly one AES block, so PKCS5 adds a whole block of padding
+
+        SecretValue<String, byte[], Integer> encrypted = Encryption.encrypt(plain, "AES/CBC/PKCS5Padding", key, iv);
+        Assert.assertEquals(
+            "a block-aligned plaintext must round trip",
+            plain,
+            Encryption.getValue(
+                Encryption.decrypt(
+                    Encryption.getValue(encrypted),
+                    Encryption.getMeta(encrypted),
+                    "AES/CBC/PKCS5Padding",
+                    key,
+                    iv)));
+    }
+
+    @Test
+    public void encryptProducesBase64() throws Exception {
+        byte[] key = new byte[16];
+        byte[] iv = new byte[16];
+        String cipherText = Encryption.getValue(Encryption.encrypt("hello", "AES/CBC/PKCS5Padding", key, iv));
+
+        Assert.assertNotNull(
+            java.util.Base64.getDecoder()
+                .decode(cipherText));
     }
 }

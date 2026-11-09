@@ -26,7 +26,9 @@ import com.austinv11.collectiveframework.minecraft.threading.MainThread;
 import com.austinv11.collectiveframework.minecraft.tiles.INBTSyncable;
 import com.austinv11.collectiveframework.minecraft.tiles.TileEntityInventory;
 import com.austinv11.collectiveframework.minecraft.utils.Colors;
+import com.austinv11.collectiveframework.minecraft.utils.Location;
 import com.austinv11.collectiveframework.minecraft.utils.NBTHelper;
+import com.austinv11.collectiveframework.minecraft.utils.StructureCreator;
 import com.austinv11.collectiveframework.minecraft.utils.WorldUtils;
 import com.austinv11.collectiveframework.multithreading.HeavyCalculations;
 import com.austinv11.collectiveframework.multithreading.ICalculations;
@@ -229,6 +231,31 @@ public class GameTestMod {
             .register(this);
     }
 
+    /**
+     * Client-side half: opens the config screen and renders book entries. Guarded by the physical side so the
+     * {@code @SideOnly(CLIENT)} {@link ClientGameTests} class is never loaded on a dedicated server.
+     */
+    @Mod.EventHandler
+    public void clientLoadComplete(cpw.mods.fml.common.event.FMLLoadCompleteEvent event) {
+        if (!ENABLED) return;
+        if (!FMLCommonHandler.instance()
+            .getSide()
+            .isClient()) return;
+        ClientGameTests.start();
+    }
+
+    /**
+     * Drives the client game test. Registered on the FML bus, like the server tick handler (CODE_REVIEW §1.1).
+     */
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (!FMLCommonHandler.instance()
+            .getSide()
+            .isClient()) return;
+        ClientGameTests.tick();
+    }
+
     @Mod.EventHandler
     public void serverStarted(FMLServerStartedEvent event) {
         if (!ENABLED) return;
@@ -318,6 +345,7 @@ public class GameTestMod {
         checkNbtHelperRoundTrip();
         checkTileEntityInventoryRoundTrip();
         checkTileEntitySyncGate();
+        checkLocationAndStructureCreator();
         checkTimeUpdateBounds();
         checkTranslationFailsFastWithoutAKey();
         checkBookPaging();
@@ -554,6 +582,53 @@ public class GameTestMod {
             "an overflowing change is rejected",
             TimeUpdatePacket.resolveRequestedTime(0L, Long.MAX_VALUE, 1) == null);
         check("a negative resulting time is rejected", TimeUpdatePacket.resolveRequestedTime(noon, 0L, -1) == null);
+    }
+
+    // ------------------------------------------------------------------ Location and StructureCreator
+
+    /**
+     * CODE_REVIEW §2.14 (fixed) - {@code Location#hashCode} returned a constant 0, so every location landed in
+     * the same hash bucket and {@code StructureCreator}'s three maps degraded to linked lists.
+     * <p>
+     * CODE_REVIEW §2.15 (fixed) - {@code StructureCreator} keyed block metadata by {@link Block}, so two
+     * placements of the same block with different metadata collided. A real world is needed for both, because
+     * {@code Location#equals} compares dimension ids and a mocked {@link World} cannot supply a provider.
+     */
+    private static void checkLocationAndStructureCreator() {
+        World world = WorldUtils.getWorldFromDimensionId(0);
+        if (world == null) throw new AssertionError("no overworld to test against");
+
+        Location here = new Location(1, 64, 1, world);
+        check("Location is equal to an identically placed Location", here.equals(new Location(1, 64, 1, world)));
+        check(
+            "Location hashCode matches for equal locations",
+            here.hashCode() == new Location(1, 64, 1, world).hashCode());
+        check(
+            "Location hashCode is not constant (CODE_REVIEW §2.14)",
+            here.hashCode() != new Location(2, 64, 1, world).hashCode());
+        check(
+            "Location distinguishes a different dimension",
+            !here.equals(new Location(1, 64, 1, WorldUtils.getWorldFromDimensionId(-1))));
+
+        java.util.Map<Location, String> map = new java.util.HashMap<Location, String>();
+        for (int x = 0; x < 100; x++) map.put(new Location(x, 64, 0, world), "v" + x);
+        check("Location works as a HashMap key", "v42".equals(map.get(new Location(42, 64, 0, world))));
+
+        int x = 8;
+        int y = 64;
+        int z = 8;
+        StructureCreator creator = new StructureCreator();
+        creator.addBlock(new Location(x, y, z, world), Blocks.log, 0);
+        creator.addBlock(new Location(x + 2, y, z, world), Blocks.log, 3);
+        creator.generateStructure(true, true);
+
+        check("structure creator wrote the first block", world.getBlock(x, y, z) == Blocks.log);
+        check(
+            "structure creator kept the first block's metadata (CODE_REVIEW §2.15)",
+            world.getBlockMetadata(x, y, z) == 0);
+        check(
+            "structure creator kept the second block's metadata (CODE_REVIEW §2.15)",
+            world.getBlockMetadata(x + 2, y, z) == 3);
     }
 
     // -------------------------------------------------------------------------------- translation

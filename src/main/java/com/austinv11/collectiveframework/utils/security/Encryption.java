@@ -42,7 +42,7 @@ public final class Encryption {
         byte[] initializationVector)
         throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException,
         InvalidKeyException, ShortBufferException, IllegalBlockSizeException, BadPaddingException {
-        byte[] data = string.getBytes();
+        byte[] data = string.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         SecretKeySpec keySpec;
         if (algorithm.contains("/")) keySpec = new SecretKeySpec(key, algorithm.split("/")[0]);
         else keySpec = new SecretKeySpec(key, algorithm);
@@ -52,7 +52,17 @@ public final class Encryption {
         byte[] encrypted = new byte[cipher.getOutputSize(data.length)];
         int encryptionLength = cipher.update(data, 0, data.length, encrypted, 0);
         encryptionLength += cipher.doFinal(encrypted, encryptionLength);
-        return newSecretValue(new String(encrypted), key, encryptionLength);
+
+        // The ciphertext used to be wrapped in `new String(encrypted)`, which decodes it with the platform
+        // charset and replaces every malformed byte sequence with U+FFFD - so decrypt(encrypt(x)) could never
+        // return x. It also covered the whole buffer, including the zero padding past encryptionLength. Base64
+        // over exactly encryptionLength bytes is lossless (CODE_REVIEW §1.19).
+        byte[] cipherText = java.util.Arrays.copyOf(encrypted, encryptionLength);
+        return newSecretValue(
+            java.util.Base64.getEncoder()
+                .encodeToString(cipherText),
+            key,
+            encryptionLength);
     }
 
     /**
@@ -77,17 +87,24 @@ public final class Encryption {
         byte[] key, byte[] initializationVector)
         throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException,
         InvalidKeyException, ShortBufferException, IllegalBlockSizeException, BadPaddingException {
-        byte[] data = string.getBytes();
+        byte[] data = java.util.Base64.getDecoder()
+            .decode(string);
         SecretKeySpec keySpec;
         if (algorithm.contains("/")) keySpec = new SecretKeySpec(key, algorithm.split("/")[0]);
         else keySpec = new SecretKeySpec(key, algorithm);
         IvParameterSpec ivSpec = new IvParameterSpec(initializationVector);
         Cipher cipher = Cipher.getInstance(algorithm);
         cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
-        byte[] decrypted = new byte[cipher.getOutputSize(encryptionLength)];
-        int decryptionLength = cipher.update(data, 0, encryptionLength, decrypted, 0);
+        // Base64 already carries the exact ciphertext length, so the recorded length is only a cross-check.
+        int length = encryptionLength > 0 && encryptionLength <= data.length ? encryptionLength : data.length;
+        byte[] decrypted = new byte[cipher.getOutputSize(length)];
+        int decryptionLength = cipher.update(data, 0, length, decrypted, 0);
         decryptionLength += cipher.doFinal(decrypted, decryptionLength);
-        return newSecretValue(new String(decrypted), key, decryptionLength);
+        // The whole buffer was decoded before, so the plaintext picked up the trailing zero padding.
+        return newSecretValue(
+            new String(decrypted, 0, decryptionLength, java.nio.charset.StandardCharsets.UTF_8),
+            key,
+            decryptionLength);
     }
 
     /**

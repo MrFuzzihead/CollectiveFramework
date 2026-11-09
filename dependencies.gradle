@@ -44,4 +44,9 @@ dependencies {
     testImplementation("org.mockito:mockito-core:4.11.0")
     // Mockito 4 needs this artifact to mock final classes and static methods on Java 8.
     testImplementation("org.mockito:mockito-inline:4.11.0")
+
+    // GuiScreen's static initialiser constructs RenderItem, which references org.lwjgl.LWJGLException, so any
+    // test that touches a class extending GuiScreen (the book Entry hierarchy) needs LWJGL at runtime. It is a
+    // compile-time dependency of the mod but not a runtime one, hence this line.
+    testRuntimeOnly("org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209")
 }

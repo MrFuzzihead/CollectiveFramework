@@ -5,7 +5,6 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class ReflectionUtilsTest {
@@ -158,7 +157,6 @@ public class ReflectionUtilsTest {
      * CODE_REVIEW §2.6 - {@code getTypeFromSignature("[Ljava/lang/String;")} strips the leading {@code [}
      * but keeps the trailing {@code ;}, producing {@code java.lang.String;} which cannot be loaded.
      */
-    @Ignore("CODE_REVIEW §2.6: object-array signatures keep the trailing ';'")
     @Test
     public void getTypeFromSignatureShouldHandleObjectArrays() throws Exception {
         Assert.assertEquals(String[].class, ReflectionUtils.getTypeFromSignature("[Ljava/lang/String;"));
@@ -169,7 +167,6 @@ public class ReflectionUtilsTest {
      * (and emits public fields twice, since it walks both {@code getDeclaredFields()} and
      * {@code getFields()}), so the output cannot be read back by {@code objectFromString}.
      */
-    @Ignore("CODE_REVIEW §2.6: objectToString tags every field with the parent's signature")
     @Test
     public void objectToStringShouldTagEachFieldWithItsOwnType() {
         String serialised = ReflectionUtils.objectToString(new Sample());
@@ -182,12 +179,63 @@ public class ReflectionUtilsTest {
      * {@link StringIndexOutOfBoundsException} on the leading {@code \{} line, because it looks for a
      * {@code :} that is not there.
      */
-    @Ignore("CODE_REVIEW §2.6: objectFromString throws on objectToString output")
     @Test
     public void objectRoundTripPreservesFieldValues() throws Exception {
         String serialised = ReflectionUtils.objectToString(new Sample());
         Sample restored = (Sample) ReflectionUtils.objectFromString(serialised, new Sample());
         Assert.assertEquals(1, restored.declared);
         Assert.assertEquals("x", restored.normal);
+    }
+
+    /** A public field declared on the class used to be emitted twice, once per {@code getFields} walk. */
+    @Test
+    public void objectToStringEmitsEachFieldOnce() {
+        String serialised = ReflectionUtils.objectToString(new Sample());
+        int first = serialised.indexOf(":normal=");
+        Assert.assertTrue("field missing from output: " + serialised, first >= 0);
+        Assert.assertEquals(
+            "public fields must not be emitted twice: " + serialised,
+            -1,
+            serialised.indexOf(":normal=", first + 1));
+    }
+
+    /** §2.7 - a one-character String used to come back as a Character. */
+    @Test
+    public void objectRoundTripKeepsAOneCharacterStringAString() throws Exception {
+        Sample original = new Sample();
+        original.normal = "y";
+
+        Sample restored = (Sample) ReflectionUtils
+            .objectFromString(ReflectionUtils.objectToString(original), new Sample());
+
+        Assert.assertEquals("y", restored.normal);
+    }
+
+    @Test
+    public void objectFromStringRejectsANonLiteral() throws Exception {
+        try {
+            ReflectionUtils.objectFromString("not an object", new Sample());
+            Assert.fail("expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+            // documented contract
+        }
+    }
+
+    @Test
+    public void objectFromStringToleratesAnUnknownField() throws Exception {
+        Sample restored = (Sample) ReflectionUtils
+            .objectFromString("{\n\tI:missing=1\n\tI:declared=7\n}", new Sample());
+        Assert.assertEquals(7, restored.declared);
+    }
+
+    @Test
+    public void coerceStringToArrayHandlesStrings() throws Exception {
+        Object[] array = ReflectionUtils.coerceStringToArray("[a,b]", "");
+        Assert.assertArrayEquals(new Object[] { "a", "b" }, array);
+    }
+
+    @Test
+    public void coerceStringToArrayHandlesAnEmptyArray() throws Exception {
+        Assert.assertEquals(0, ReflectionUtils.coerceStringToArray("[]", "").length);
     }
 }

@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -61,7 +60,6 @@ public class StringUtilsTest {
      * CODE_REVIEW §3.14 / StringUtils: {@code countFor} passes its search term straight to
      * {@code String.replaceFirst}, so any regex metacharacter is interpreted as a pattern.
      */
-    @Ignore("CODE_REVIEW §2.x: countFor treats the search term as a regex")
     @Test
     public void countForShouldTreatSearchTermLiterally() {
         // "." appears twice, but replaceFirst(".") matches *any* character.
@@ -89,7 +87,6 @@ public class StringUtilsTest {
      * {@code substring(index, index + toReplace.length())}. Any match at index &gt; 0 throws
      * {@link StringIndexOutOfBoundsException}.
      */
-    @Ignore("CODE_REVIEW §1.10: substring uses the wrong end index and throws")
     @Test
     public void replaceFirstPreservingCaseShouldWorkPastIndexZero() {
         Assert.assertEquals("Hello Earth", StringUtils.replaceFirstPreservingCase("Hello World", "world", "earth"));
@@ -99,9 +96,47 @@ public class StringUtilsTest {
      * CODE_REVIEW §1.10 - {@code replaceAllPreservingCase} loops over {@code countFor} and calls the
      * broken {@code replaceFirstPreservingCase}, so it throws for any non-leading match.
      */
-    @Ignore("CODE_REVIEW §1.10: replaceAllPreservingCase inherits the broken replaceFirstPreservingCase")
     @Test
     public void replaceAllPreservingCaseShouldReplaceEveryOccurrence() {
-        Assert.assertEquals("Hi Hi", StringUtils.replaceAllPreservingCase("Hello hello", "hello", "hi"));
+        // Case is taken from each occurrence: "Hello" -> "Hi", "hello" -> "hi".
+        Assert.assertEquals("Hi hi", StringUtils.replaceAllPreservingCase("Hello hello", "hello", "hi"));
+    }
+
+    /** An empty search term used to loop forever in {@code countFor}. */
+    @Test
+    public void countForWithAnEmptySearchTermReturnsZero() {
+        Assert.assertEquals(0, StringUtils.countFor("abc", ""));
+        Assert.assertEquals(0, StringUtils.countFor("abc", "", true));
+    }
+
+    @Test
+    public void countForTreatsRegexMetacharactersLiterally() {
+        Assert.assertEquals(2, StringUtils.countFor("a.b.c", "."));
+        Assert.assertEquals(1, StringUtils.countFor("a+b", "+"));
+        Assert.assertEquals(1, StringUtils.countFor("a$b", "$"));
+        Assert.assertEquals(1, StringUtils.countFor("a(b", "("));
+    }
+
+    @Test
+    public void countForIsNonOverlapping() {
+        Assert.assertEquals(1, StringUtils.countFor("aaa", "aa"));
+    }
+
+    @Test
+    public void replaceFirstPreservingCaseTreatsTheSearchTermLiterally() {
+        Assert.assertEquals("a-b", StringUtils.replaceFirstPreservingCase("a.b", ".", "-"));
+        Assert.assertEquals("a$b", StringUtils.replaceFirstPreservingCase("a+b", "+", "$"));
+    }
+
+    @Test
+    public void replaceAllPreservingCaseWithAnEmptySearchTermIsANoOp() {
+        Assert.assertEquals("abc", StringUtils.replaceAllPreservingCase("abc", "", "x"));
+    }
+
+    @Test
+    public void repeatStringHandlesNullAndNonPositiveAmounts() {
+        Assert.assertEquals("", StringUtils.repeatString(null, 3));
+        Assert.assertEquals("", StringUtils.repeatString("ab", 0));
+        Assert.assertEquals("", StringUtils.repeatString("ab", -1));
     }
 }

@@ -610,7 +610,7 @@ public class ConfigRegistry {
         }
     }
 
-    public static class ConfigProxy implements Cloneable {
+    public static class ConfigProxy {
 
         public Object config;
         public IConfigurationHandler handler;

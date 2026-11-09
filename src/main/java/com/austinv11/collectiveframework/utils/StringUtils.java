@@ -19,9 +19,10 @@ public class StringUtils {
      * @return The String
      */
     public static String stringFromList(List list) {
-        String val = "";
-        for (Object o : list) val = val + String.valueOf(o) + "\n";
-        return val;
+        StringBuilder val = new StringBuilder();
+        for (Object o : list) val.append(o)
+            .append('\n');
+        return val.toString();
     }
 
     /**
@@ -31,9 +32,10 @@ public class StringUtils {
      * @return The String
      */
     public static <T> String stringFromArray(T[] array) {
-        String val = "";
-        for (T o : array) val = val + String.valueOf(o) + "\n";
-        return val;
+        StringBuilder val = new StringBuilder();
+        for (T o : array) val.append(o)
+            .append('\n');
+        return val.toString();
     }
 
     /**
@@ -44,9 +46,9 @@ public class StringUtils {
      * @return The String
      */
     public static String repeatChar(char character, int amount) {
-        String val = "";
-        for (int i = 0; i < amount; i++) val = val + String.valueOf(character);
-        return val;
+        StringBuilder val = new StringBuilder(Math.max(0, amount));
+        for (int i = 0; i < amount; i++) val.append(character);
+        return val.toString();
     }
 
     /**
@@ -57,9 +59,10 @@ public class StringUtils {
      * @return The String
      */
     public static String repeatString(String string, int amount) {
-        String val = "";
-        for (int i = 0; i < amount; i++) val = val + String.valueOf(string);
-        return val;
+        if (string == null || amount <= 0) return "";
+        StringBuilder val = new StringBuilder(string.length() * amount);
+        for (int i = 0; i < amount; i++) val.append(string);
+        return val.toString();
     }
 
     /**
@@ -87,18 +90,18 @@ public class StringUtils {
      * @return The amount of occurrences
      */
     public static int countFor(String string, String toFind, boolean ignoreCase) {
-        String searchString = string;
-        String regex = toFind;
-        if (ignoreCase) {
-            searchString = searchString.toLowerCase();
-            regex = regex.toLowerCase();
+        // Used String.replaceFirst with the search term as a regex, so any metacharacter was interpreted as a
+        // pattern and an empty search term looped forever (CODE_REVIEW §3.14).
+        if (string == null || toFind == null || toFind.isEmpty()) return 0;
+        String haystack = ignoreCase ? string.toLowerCase(java.util.Locale.ROOT) : string;
+        String needle = ignoreCase ? toFind.toLowerCase(java.util.Locale.ROOT) : toFind;
+        int count = 0;
+        int index = 0;
+        while ((index = haystack.indexOf(needle, index)) != -1) {
+            count++;
+            index += needle.length();
         }
-        int i = 0;
-        while (searchString.contains(regex)) {
-            searchString = searchString.replaceFirst(regex, "");
-            i++;
-        }
-        return i;
+        return count;
     }
 
     /**
@@ -122,20 +125,25 @@ public class StringUtils {
      * @return The new string
      */
     public static String replaceFirstPreservingCase(String string, String toReplace, String toReplaceWith) {
-        String temp = string.toLowerCase();
-        int index = temp.indexOf(toReplace.toLowerCase());
+        if (string == null || toReplace == null || toReplaceWith == null) return string;
+        if (toReplace.isEmpty()) return string;
+
+        int index = string.toLowerCase(java.util.Locale.ROOT)
+            .indexOf(toReplace.toLowerCase(java.util.Locale.ROOT));
         if (index == -1) return string;
-        String found = string.substring(index, toReplace.length());
-        char[] casedToReplace = found.toCharArray();
-        char[] toReplaceWithChars = toReplaceWith.toCharArray();
-        for (int i = 0; i < casedToReplace.length; i++) {
-            if (i == toReplaceWithChars.length) break;
-            if (Character.isLowerCase(casedToReplace[i]))
-                toReplaceWithChars[i] = Character.toLowerCase(toReplaceWithChars[i]);
-            else toReplaceWithChars[i] = Character.toUpperCase(toReplaceWithChars[i]);
+
+        // substring(index, toReplace.length()) threw StringIndexOutOfBoundsException for any match past the
+        // start of the string (CODE_REVIEW §1.10).
+        String found = string.substring(index, index + toReplace.length());
+        char[] foundChars = found.toCharArray();
+        char[] replacementChars = toReplaceWith.toCharArray();
+        for (int i = 0; i < foundChars.length && i < replacementChars.length; i++) {
+            replacementChars[i] = Character.isLowerCase(foundChars[i]) ? Character.toLowerCase(replacementChars[i])
+                : Character.toUpperCase(replacementChars[i]);
         }
-        String newToReplaceWith = String.valueOf(toReplaceWithChars);
-        return string.replaceFirst(found, newToReplaceWith);
+
+        // Built by hand: String.replaceFirst treated both the search term and the replacement as regex syntax.
+        return string.substring(0, index) + new String(replacementChars) + string.substring(index + found.length());
     }
 
     /**
@@ -147,7 +155,12 @@ public class StringUtils {
      * @return The new string
      */
     public static String replaceAllPreservingCase(String string, String toReplace, String toReplaceWith) {
-        for (int i = 0; i < countFor(string, toReplace, true); i++) {
+        if (string == null || toReplace == null || toReplaceWith == null) return string;
+        if (toReplace.isEmpty()) return string;
+        // Bounded by the original occurrence count, so a replacement that itself contains the search term
+        // cannot loop forever.
+        int remaining = countFor(string, toReplace, true);
+        for (int i = 0; i < remaining; i++) {
             string = replaceFirstPreservingCase(string, toReplace, toReplaceWith);
         }
         return string;

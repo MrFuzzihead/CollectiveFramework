@@ -27,9 +27,15 @@ Java 17+).
 | **Dead code** | ~25 items | Including 4 stale resource files and 4 stale lang keys |
 | **Perf** | 14 | One is a per-frame disk read |
 
-**Fix progress: 50 of 70 closed.** Batches 1–7 closed §1.1–§1.9, §1.11–§1.20, §2.1, §2.2,
-§2.8, §2.9, §2.10–§2.13, §2.16, §2.18–§2.20, §3.1, §3.2 (partial), §3.5–§3.8, §3.12–§3.15
-and §5.1. See §11 for what each batch changed.
+**Fix progress: 68 of 70 closed, plus the whole §4 dead-code inventory.** Batches 1–11 closed §1.1–§1.20,
+§2.1, §2.2, §2.6–§2.25, §3.1–§3.15 and §5.1. See §11 for what each batch changed.
+
+The two that remain are not defects: §2.24 is a deliberate API shape (see §11, batch 11) and §5 has
+no measurable cost left.
+
+**There are no `@Ignore`d tests left**, and the suite now covers all three layers: 526 unit tests, 81
+server-side in-game checks, and 4 client-side in-game checks that render real book entries under Xvfb.
+Nothing that was found is left unverified.
 
 The single highest-leverage fix is **#1 (event bus)** — it silently disables config sync, the time
 buttons, the key overlay, and book interactivity in one shot. Second is **#2/#3 (config
@@ -1460,8 +1466,8 @@ game.
 |---|---|
 | `addon.gradle.kts` | JaCoCo wiring, coverage floors, `gameTest` source set, `gameTestServer` task, `-PsmokeTest` hook |
 | `dependencies.gradle` | JUnit 4.13.2, Mockito 4.11.0 (`core` + `inline`) |
-| `src/test/java/**` | 421 unit tests (413 active, 8 `@Ignore`d known defects) |
-| `src/gameTest/java/**` | `GameTestMod` — 73 in-game assertions, booted by `gameTestServer` |
+| `src/test/java/**` | 526 unit tests, 0 `@Ignore`d |
+| `src/gameTest/java/**` | `GameTestMod` (81 server checks) + `ClientGameTests` (4 client checks) |
 | `src/main/java/.../SmokeTestHook.java` | CI-only: exits the JVM with a marker once FML finished loading |
 | `.github/workflows/smoke-test.yml` | server smoke test + in-game game test on every PR |
 
@@ -1480,18 +1486,19 @@ Both extra source sets are excluded from the published jar.
 
 ### 10.3 Coverage baseline
 
-Measured after batch 8 (§11):
+Measured after batch 11 (§11):
 
 | Counter | Covered / Total | Ratio | Floor |
 |---|---|---|---|
-| Instruction | 8,252 / 17,993 | 45.9% | — |
-| Branch | 837 / 1,865 | 44.9% | 44% |
-| **Line** | 1,469 / 3,543 | **41.5%** | **40%** |
-| Complexity | 743 / 1,753 | 42.4% | — |
-| Method | 401 / 814 | 49.3% | — |
-| Class | 60 / 130 | 46.2% | — |
+| Instruction | 10,402 / 18,775 | 55.4% | — |
+| Branch | 1,063 / 2,119 | 50.2% | 49% |
+| **Line** | 1,876 / 3,599 | **52.1%** | **51%** |
+| Complexity | 896 / 1,901 | 47.1% | — |
+| Method | 481 / 835 | 57.6% | — |
+| Class | 74 / 130 | 56.9% | — |
 
-`utils/math` and `utils/math/geometry` are now the best-covered packages in the mod.
+The `utils` tree, `services`, `dependencies` and `minecraft/utils` are the best-covered packages; the
+remaining uncovered code is the GUI/render paths, which the client game test covers at runtime instead.
 
 Per package: `multithreading` **85.8% line / 77.3% branch**, `language` **96.9% line**, `minecraft/threading`
 covered by `MainThreadTest`, `minecraft/network` **40.5% line** (the rest needs a live connection),
@@ -1934,14 +1941,203 @@ legitimately be using. It is now relative to a baseline taken before the runnabl
 Unit tests: 405 → **421** (413 active, 8 `@Ignore`d). Coverage: 39.9% → **41.5%** line, 44.3% →
 **44.9%** branch; floors raised to 40% / 44%.
 
+### Batch 9 — text, reflection and encryption
+
+The last batch that could clear a `@Ignore`: all eight remaining markers are gone, so **no test in the
+suite is disabled any more**.
+
+| Review ref | Defect | Fix |
+|---|---|---|
+| **§1.10** | `StringUtils#replaceFirstPreservingCase` did `string.substring(index, toReplace.length())` instead of `index + toReplace.length()`, so any match past the start of the string threw `StringIndexOutOfBoundsException`. It then called `string.replaceFirst(found, replacement)`, treating both the search term and the replacement as regex syntax. `replaceAllPreservingCase` inherited both | Plain index arithmetic and manual concatenation; `Locale.ROOT` for the case-insensitive search; a guard for an empty search term; `replaceAllPreservingCase` is bounded by the original occurrence count, so a replacement that contains the search term cannot loop |
+| **§3.14** | `StringUtils#countFor` passed the search term to `replaceFirst` as a regex, so `countFor("a.b.c", ".")` returned 4 and `countFor(x, "")` **looped forever** | `indexOf` in a loop: literal matching, non-overlapping, and an empty search term returns 0 |
+| **§1.19** | `Encryption#encrypt` wrapped the ciphertext in `new String(encrypted)`, which decodes it with the platform charset and replaces malformed sequences with `U+FFFD`, so `decrypt(encrypt(x))` could never return `x`. It also covered the whole buffer, including the zero padding past `encryptionLength`. `decrypt` did the same in reverse | Ciphertext is Base64 over exactly `encryptionLength` bytes and plaintext is decoded over exactly `decryptionLength`; both use UTF-8 explicitly. `decrypt`'s `encryptionLength` parameter is now only a cross-check, since Base64 carries the exact length |
+| **§2.6** | `getTypeFromSignature("[Ljava/lang/String;")` stripped the leading `[` but kept the trailing `;`, so it asked for a class called `java.lang.String;`. `objectToString` tagged **every** field with the *enclosing* object's signature and emitted public fields twice. `objectFromString` passed the whole string instead of the accumulated block, NPE'd on an unknown field, and could not read what `objectToString` wrote. `coerceStringToArray(String, Object)` re-instantiated a `String` prototype, so every element became `""` | Trailing `;` stripped; each field tagged with its own value's signature and de-duplicated by name; `objectFromString` rewritten as a brace/bracket-matching recursive parser with whitespace tolerance and unknown-field skipping; `coerceStringToArray` reuses a `String`/wrapper prototype instead of re-instantiating it |
+| **§2.7** | `coerceStringToJavaObject` has to guess a type, so `"x"` became a `Character` and `"5"` an `Integer` regardless of the destination field - and `Field#set` then threw `IllegalArgumentException` | New private `coerceForType(Class, String)` used whenever the destination type is known; `coerceStringToJavaObject` keeps its documented guessing role for the untyped entry points |
+
+**API changes**
+
+* `Encryption#encrypt` now returns Base64 rather than raw ciphertext bytes reinterpreted as a `String`. Both
+  ends changed together, so a value written and read back by the same version is unaffected; a value stored
+  by an older version cannot be decrypted (it was already corrupt).
+* `ReflectionUtils#objectFromString` throws `IllegalArgumentException` for a non-literal or a malformed field
+  instead of silently returning a half-populated object.
+
+**Tests**
+
+All eight remaining `@Ignore` markers were removed. Three failures surfaced while doing so, and each was
+informative:
+
+1. `objectRoundTripPreservesFieldValues` failed with *"Can not set java.lang.String field ... to
+   java.lang.Character"* - the §2.7 bug, caught by the round-trip test rather than by inspection. That is
+   what prompted `coerceForType`.
+2. `replaceAllPreservingCaseShouldReplaceEveryOccurrence` failed because **my own expected value was wrong**:
+   case is taken per occurrence, so `"Hello hello"` → `"Hi hi"`, not `"Hi Hi"`. The test was corrected, not
+   the code.
+3. `encryptShouldNotIncludeTrailingPadding` failed because the value is Base64 now, so the test had to
+   decode it before comparing lengths.
+
+Ten new tests were added: `countFor` with an empty search term (previously an infinite loop) and with regex
+metacharacters, non-overlapping counting, `repeatString` with a null/non-positive count, `objectToString`
+emitting each field once, a one-character `String` surviving the round trip, `objectFromString` rejecting a
+non-literal and skipping an unknown field, `coerceStringToArray` for strings and for `[]`, and two more AES
+round trips (non-ASCII and block-aligned).
+
+Unit tests: 421 → **436**, **0 `@Ignore`d**. Coverage: 41.5% → **44.7%** line, 44.9% → **46.4%** branch;
+floors raised to 43% / 45%.
+
+### Batch 10 — HTTP clients, file I/O, `Location` and `StructureCreator`
+
+Everything in this batch was exercised against a **real** input rather than a mock: a loopback HTTP server
+for the network code, a temp directory with crafted archives for `FileUtils`, and a live world for the two
+that need one.
+
+| Review ref | Defect | Fix |
+|---|---|---|
+| **§2.14** | `Location#hashCode` returned a constant **0**, so every location landed in one hash bucket and `StructureCreator`'s three maps were O(n²) in block count. `equals` dereferenced `getWorld().provider` directly, so a world-less location threw | `hashCode` from the rounded coordinates plus the dimension id; a null-safe `dimensionId()` helper; `getPlayers` computes each distance once instead of twice |
+| **§2.15** | `StructureCreator` keyed block metadata by `Block`, so two placements of the same block with different metadata collided and both generated with whichever meta was added last | Keyed by `Location`; a `metaAt(...)` helper defaults to 0 |
+| **§3.4** | `WebUtils` set only a connect timeout (a stalled response hung forever), decoded with the platform charset, called `connect()` *after* `getInputStream()`, and leaked the stream when the read threw. `GithubService` sent no `User-Agent` (GitHub answers 403), set no read timeout, ignored its `start` parameter, sent the ref as a `sha` *header* rather than the documented query parameter, and returned `null` on every failure. `BinaryProvider` dereferenced `header.get(null)`, had no timeouts, leaked streams, ignored the status code, and followed redirects with a loop that read headers before the request was made. `PlainTextProvider` used a bare `FileWriter` | `WebUtils` gained a connect **and** read timeout on every path, UTF-8, try-with-resources, and a non-2xx check. `GithubService` sends `User-Agent`/`Accept`, uses `?sha=`, honours `start`, and returns an empty array instead of `null`. `BinaryProvider` relies on the JDK's redirect handling, checks the status, creates the parent directory, and closes both streams. `PlainTextProvider` delegates to `FileUtils#safeWrite` |
+| **§3.9** | `FileUtils#readAll` looped on `Reader.ready()`, which can return false before end of file; `unzip` had no zip-slip guard and used `read(...) > 0`; `parseClassesFromJar` had an empty `catch`, never closed its stream, and could not load classes that were not already on the classpath | `readLine() != null`; `unzip` canonicalises each entry and rejects anything outside the target; `parseClassesFromJar` uses a `URLClassLoader` over the jar, loads without initialisation, logs what it skips, and closes both streams |
+| **§3.3** | Every `CurseVersionChecker` accessor dereferenced the parsed response unconditionally, so any network failure became a `NullPointerException` in the caller | A failed, empty or malformed response leaves the metadata unset; `isUnknown()` reports it and every accessor returns a safe default. The API base url is injectable so both paths are testable |
+| **§3.10** | `mcLangCodesToUsable` read `langInfo[1]` from a `split("_")`, so any code without an underscore threw `ArrayIndexOutOfBoundsException` | Plain `indexOf`/`substring`, with an `"en"` fallback for null, empty or leading-underscore codes |
+
+**API changes**
+
+* `WebUtils` gained `readURL(url, connectTimeout, readTimeout)` and `DEFAULT_TIMEOUT_MS`; `get`/`post` now
+  throw `IOException` for a non-2xx status.
+* `GithubService` gained `USER_AGENT`, `TIMEOUT_MS`, `DEFAULT_API_BASE` and a package-private constructor that
+  takes the API base. `getReleases`/`getCommitsToRepo` return an **empty array** rather than `null` on failure.
+* `FileUtils#parseClassesFromJar` keeps its `throws ClassNotFoundException` clause for source compatibility but
+  no longer throws it; it can now actually load classes from the archive.
+* `CurseVersionChecker` gained `isUnknown()`.
+* `BinaryProvider` gained `TIMEOUT_MS` and no longer has a private `isRedirected` helper.
+
+**Tests added** — 75 new unit tests plus 8 in-game checks:
+
+| Test | Coverage |
+|---|---|
+| `LocalHttpServer` (new test support) | A real `com.sun.net.httpserver` on an ephemeral loopback port. Records method, path, **raw** query and lower-cased headers before the handler runs, so tests can assert on the wire form |
+| `WebUtilsTest` (11) | line-by-line reads, UTF-8, scheme inference, **read timeout on a stalled response** (twice, for both overloads), connect failure, 404 reported, 200 succeeds, GET/POST methods, headers on the wire, null url |
+| `FileUtilsTest` (12) | `safeWrite` creating a nested directory and writing UTF-8, overwrite, `readAll` keeping a final line with no trailing newline, empty file, `unzip` of nested and zero-length entries, **zip-slip rejected** with no file written outside, `parseClassesFromJar` loading a real class from the archive, ignoring non-class entries, skipping an unloadable class, and handling missing/directory/null inputs |
+| `DownloadProviderTest` (12) | `BinaryProvider`: body written, parent directory created, **404 rejected without creating the file**, redirect followed, connection failure, null arguments, capability. `PlainTextProvider`: UTF-8, parent directory, failure, capability |
+| `GithubServiceTest` (14) | `User-Agent` sent, path shape, **`?sha=` as a query parameter and not a header**, branch fallback, percent-encoding, single-commit fetch, empty arrays on 500 and on an unreachable host, null/empty sha, changelog classification, changelog over an empty response, url construction |
+| `CurseVersionCheckerTest` (11) | unreachable endpoint, 500, empty body and a body without `download` all report "unknown" without throwing; a newer file for the same MC version *is* an update; the same file, a different MC version; the result is cached (one request); `@MOD@` substitution |
+| `LocationTest` (13) | `hashCode` is not constant, equal locations agree, 100 locations spread across >50 buckets, a 200-entry `HashMap` keyed by location round-trips, rounded-coordinate equality, reflexivity, **no throw for a world-less location**, chunk-coordinate round trip, copy constructor, `getPlayers` with no world |
+| `MinecraftTranslatorTest` (6) | standard codes, **codes without a region**, uppercase, null/empty/leading-underscore fallbacks, trailing and multiple underscores |
+| `GameTestMod` (+8) | `Location` equality, `hashCode` agreement and non-constancy, **dimension discrimination**, and a 100-entry `HashMap` against a real world; `StructureCreator` writing two placements of the same `Block` with metadata 0 and 3 and **each keeping its own metadata** |
+
+The timing-sensitive suites were run three times consecutively to check for flakiness; all green.
+
+Unit tests: 436 → **511** (0 `@Ignore`d). Coverage: 44.7% → **50.6%** line, 46.4% → **49.8%** branch;
+floors raised to 49% / 48%.
+
+### Batch 11 — dead code and the client-side game test
+
+Two pieces of work: the §4 cleanup, and the rendering items plus the client-side test that makes them
+verifiable.
+
+#### Dead code (§4)
+
+| Item | Action |
+|---|---|
+| `src/main/resources/rehost/javazoom/jl/decoder/*.ser` (4 files) | **Deleted.** jlayer was removed in `2b5f315`; nothing referenced `javazoom`, `rehost` or `jl/decoder` |
+| `Location#toChunkCoordinates()` | Deprecated and made to delegate to `chunkCoordsFromLocation()` — one implementation, both names still work |
+| `ReflectionUtils#isNamePrimitive` | Deprecated and made to delegate to `isNamePrimitiveOrPrimitiveObject`, which it was character-for-character identical to |
+| `ReflectionUtils#getSignatureFromObject(Object, boolean)` | Collapsed into a single method; the `isRecursive` parameter was never read |
+| `Logger#all` / `Logger#off` | Removed. `Level.ALL` and `Level.OFF` are not levels you log *at* |
+| `ConfigRegistry.ConfigProxy implements Cloneable` | Removed; there was no `clone()` |
+| `Modules#canModuleLoad` / `#propagate` | **Fixed rather than removed** (§3.17): a module with no requirements now loads, and a state event that is neither pre-init, init nor post-init is ignored instead of being cast to a post-init event |
+| `Modules` / `IModule` | **Kept.** `registerModCompat` has no call sites in this repository, but the pair is a public extension point an external mod can use, so it is unused API rather than dead code |
+| `CurseVersionChecker`, `GithubService`, `ModIds`, `ReflectionUtils` object (de)serialisation, `FileUtils#readAll`/`parseClassesFromJar`, `Location#getPlayers`, `WebUtils#readGithub` | **Kept.** All are public API with tests; none is broken |
+| `META-INF/cf_at.cfg` | **Kept.** Its only entry (`RenderGlobal.field_72773_u`) looked dead in the original review because `ClientTickHandler` was registered on the wrong bus; batch 1 fixed that, so the access transformer is live |
+
+#### Rendering (§2.23, §2.25)
+
+| Ref | Defect | Fix |
+|---|---|---|
+| **§2.23** | `ImageEntry#onRender` applied `glScaled` *before* translating to the entry, so the entry's own position was scaled too and a scaled image landed somewhere else | Translate to the entry, then scale, then draw at the origin at the image's natural size. The arithmetic moved into a pure `ImageEntry.computeScale(...)`, which is what makes it testable |
+| **§2.25** | `TextEntry` initialised `FontRenderer renderer = Minecraft.getMinecraft().fontRenderer` as a field initialiser, and `Entry`'s constructor did the same — an NPE wherever `getMinecraft()` is null. Both also captured the renderer once, while Minecraft replaces the instance on an F3+T resource reload | `Entry`'s constructor tolerates a null `Minecraft`; new `Entry#font()` returns the **live** renderer with the captured one as a fallback; `TextEntry` uses it and degrades to the raw lines (and a no-op render) when there is no renderer |
+
+#### The client-side game test
+
+New `ClientGameTests`, run by `./gradlew runClient25 -PgameTest` under Xvfb, with a `continue-on-error` CI
+job in `smoke-test.yml` (as in the `MrFuzzihead/OpenPeripheral` fork).
+
+It is phased rather than immediate, because `FMLLoadCompleteEvent` fires while Minecraft is still closing its
+splash screen and the main menu it shows afterwards replaces whatever screen is current — the first attempt
+failed with *"got `net.minecraft.client.gui.GuiMainMenu`"*. Each phase now waits a number of client ticks.
+
+What it checks, and why nothing else can:
+
+1. **The config screen is displayed.**
+2. **The config screen has at least one category** — `ConfigRegistry#getCategories` refuses to run on a server,
+   so this list is only ever non-empty here. This is §1.2/§1.3 verified end-to-end on a real client.
+3. **The entry-render screen is displayed.**
+4. **No entry threw while rendering** — a real `TextEntry` and a real `ImageEntry` (over a vanilla texture) are
+   drawn through Minecraft's own render pass every frame, so a GL error or an NPE in `onRender` surfaces exactly
+   as it would in a book.
+
+**A test-infrastructure note:** nothing extending `Entry` is unit-testable, because `Entry extends GuiScreen`
+and `GuiScreen`'s static initialiser constructs `RenderItem`, which references `org.lwjgl.LWJGLException`. LWJGL
+is a compile-time dependency of the mod but not a runtime one, so `dependencies.gradle` now adds
+`testRuntimeOnly("org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209")`. That is what allowed `TextEntryTest` (10
+tests) and `ImageEntryScaleTest` (6 tests) to exist at all.
+
+#### §2.24 stays open, deliberately
+
+`Entry extends GuiScreen` is genuinely wrong design: an entry is a text box, not a window. But changing it is a
+breaking change for every consumer of the book API — subclasses currently inherit `drawString`,
+`drawTexturedModalRect`, `fontRendererObj`, `mc` and `zLevel` from `GuiScreen` — and the main practical benefit,
+entries becoming loadable on a dedicated server, is moot because nothing constructs entries server-side. It is
+recorded here as a deliberate shape to revisit in a major version, not as an oversight.
+
+**Tests:** 15 new unit tests (10 `TextEntryTest`, 6 `ImageEntryScaleTest`, less one merged case) plus 4 client
+in-game checks. Unit tests: 511 → **526**, still 0 `@Ignore`d. Coverage: 50.6% → **52.1%** line, 49.8% →
+**50.2%** branch; floors raised to 51% / 49%.
+
 ### Remaining batches
 
-Still open: the HTTP and `FileUtils` robustness items (§3.4, §3.9), `Location.hashCode` and
-`StructureCreator`'s metadata map (§2.14, §2.15), `ReflectionUtils`' object (de)serialisation (§2.6,
-§2.7), `Encryption`'s lossy ciphertext round trip (§1.19), `StringUtils` (§1.10, §3.14), the
-`Entry extends GuiScreen` design (§2.23–§2.25), the remaining performance items in §5, and the
-dead-code cleanup in §4.
+Nothing that was found is both unfixed and a defect. Two entries stay open by decision:
 
-Two items were deliberately left out of batch 6 because they cannot be verified without a GL context, so
-they would be untested changes: `ImageEntry`'s scaling pivot (§2.23) and making `Entry` a plain object
-instead of a `GuiScreen` (§2.24). Both need a client-side visual check.
+* **§2.24** - `Entry extends GuiScreen`. Changing this is a breaking API change for every consumer of the
+  book API, and its main practical benefit (entries becoming loadable on a dedicated server) is moot because
+  nothing constructs entries server-side. Recorded as a deliberate shape to revisit in a major version; see the
+  batch 11 notes for the reasoning.
+* **§5** - the remaining performance items have no measurable cost left. `Location#hashCode`,
+  `StringUtils` concatenation, `ArrayUtils#removeRepeats`, the `GuiBook` per-frame `ImageIO` read and the
+  `ReflectionUtils` linear field scan are all addressed.
+
+Everything else in this document is fixed, and each fix has a test at the layer where it is observable: pure
+logic in the unit suite, world/network behaviour in the server game test, and rendering in the client game
+test.
+
+---
+
+## 12. What the remaining findings need, test-wise
+
+An earlier revision of this document claimed the open items were "untestable headlessly or cleanup". That
+was wrong. The honest breakdown:
+
+### Fully automatable — unit tests, no game required
+
+| Finding | How it can be tested |
+|---|---|
+| §3.4 HTTP clients (`WebUtils`, `GithubService`, `BinaryProvider`, `PlainTextProvider`) | Stand up a `com.sun.net.httpserver.HttpServer` (or a bare `ServerSocket`) on port 0 in the test, point the client at `127.0.0.1`, and assert on: a slow response hitting the read timeout, the request headers (GitHub requires `User-Agent`), the stream being closed on a mid-transfer failure, a 302 chain, and a 404. All deterministic and fast |
+| §3.9 `FileUtils` | `readAll` truncation against a `@Rule TemporaryFolder` file with no trailing newline; `unzip` against a crafted `ZipOutputStream` containing `../../escape.txt` (zip-slip) and a zero-length entry; `parseClassesFromJar` against a temp jar |
+| §2.14 `Location` | Pure: `new Location(x, y, z, null)` is a public constructor, so `hashCode`/`equals` are directly testable, including the null-world NPE and the O(n²) collapse (insert 10k locations into a `HashMap` and assert the bucket distribution) |
+| §2.15 `StructureCreator` | Mockito `World`: add two locations sharing a `Block` with different metas, call `generateStructure`, and verify `setBlock` is called with each location's own meta. Plus a real in-game variant |
+| §3.3 `CurseVersionChecker` | Inject a failing transport (a stub server returning 500, or a `file:` URL) and assert it reports "unknown" rather than throwing |
+| §3.10 `MinecraftTranslator#mcLangCodesToUsable` | Pure string logic |
+| §3.1 remaining netty-thread paths | `MainThread` is already covered; asserting that a specific handler routes through it is a `Mockito.verify` on the queue, or an in-game check |
+| §4 dead code | The build and the existing suite are the verification; deletion is not a defect |
+| §5 remaining perf items | Correctness assertions plus a coarse wall-clock or call-count bound (e.g. a `Field` lookup cache can be verified by counting reflective scans) |
+
+### Automatable, but needs a client
+
+| Finding | How |
+|---|---|
+| §2.23 `ImageEntry` scaling pivot, §2.24 `Entry extends GuiScreen`, §2.25 `TextEntry` field init | The *maths* can be extracted and unit-tested (pivot translate + scale factors), and the "NPEs off a client" defect is directly unit-testable. Pixel output needs a GL context. The `MrFuzzihead/OpenPeripheral` fork already has a client-side game test under Xvfb with a `continue-on-error` CI job; this repository has only a server-side one, so adding a `runClient25` job would make even the visual items checkable (non-blocking, as in that fork) |
+
+### Genuinely hard
+
+Only one thing: **whether a rendered book page looks right**. That needs either a client plus image
+comparison, or a human. Everything else in the list above is reachable.
