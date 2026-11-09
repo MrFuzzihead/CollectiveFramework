@@ -31,10 +31,7 @@ public class GuiUtils {
      * Closes the currently opened gui for the player
      */
     public static void closeCurrentGui() {
-        if (Minecraft.getMinecraft().currentScreen != null) {
-            Minecraft.getMinecraft().currentScreen.onGuiClosed();
-            Minecraft.getMinecraft().currentScreen = null;
-        }
+        closeCurrentGui(null);
     }
 
     /**
@@ -43,11 +40,15 @@ public class GuiUtils {
      * @param filter The gui filter
      */
     public static void closeCurrentGui(Class<? extends GuiScreen> filter) {
-        if (Minecraft.getMinecraft().currentScreen != null
-            && filter.isAssignableFrom(Minecraft.getMinecraft().currentScreen.getClass())) {
-            Minecraft.getMinecraft().currentScreen.onGuiClosed();
-            Minecraft.getMinecraft().currentScreen = null;
-        }
+        Minecraft minecraft = Minecraft.getMinecraft();
+        // No game running (unit tests, early class loading): nothing to close.
+        if (minecraft == null) return;
+        GuiScreen current = minecraft.currentScreen;
+        if (current == null) return;
+        if (filter != null && !filter.isAssignableFrom(current.getClass())) return;
+        // Assigning currentScreen = null directly skipped displayGuiScreen's cleanup, leaving the mouse cursor
+        // grabbed and the world paused (CODE_REVIEW §2.20). displayGuiScreen(null) calls onGuiClosed itself.
+        minecraft.displayGuiScreen(null);
     }
 
     /**

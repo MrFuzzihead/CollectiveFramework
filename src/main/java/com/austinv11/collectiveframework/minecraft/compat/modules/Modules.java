@@ -26,7 +26,13 @@ public class Modules {
     }
 
     private static boolean canModuleLoad(IModule module) {
-        for (String s : module.modsCompatible()) if (Loader.isModLoaded(s)) return true;
+        String[] required = module.modsCompatible();
+        // A module with no requirements used to never load, contradicting the documented "not strict" contract
+        // (CODE_REVIEW §3.17).
+        if (required == null || required.length == 0) return true;
+        for (String modId : required) {
+            if (modId != null && Loader.isModLoaded(modId)) return true;
+        }
         return false;
     }
 
@@ -49,9 +55,12 @@ public class Modules {
      * @param event The event
      */
     public static void propagate(FMLStateEvent event) {
-        for (IModule m : modules)
-            if (event instanceof FMLPreInitializationEvent) m.preInit((FMLPreInitializationEvent) event);
-            else if (event instanceof FMLInitializationEvent) m.init((FMLInitializationEvent) event);
-            else m.postInit((FMLPostInitializationEvent) event);
+        for (IModule module : modules) {
+            if (event instanceof FMLPreInitializationEvent) module.preInit((FMLPreInitializationEvent) event);
+            else if (event instanceof FMLInitializationEvent) module.init((FMLInitializationEvent) event);
+            else if (event instanceof FMLPostInitializationEvent) module.postInit((FMLPostInitializationEvent) event);
+            // Any other state event is ignored rather than being cast to a post-init event, which threw
+            // ClassCastException (CODE_REVIEW §3.17).
+        }
     }
 }

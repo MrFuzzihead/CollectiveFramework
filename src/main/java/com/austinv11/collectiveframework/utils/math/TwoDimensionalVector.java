@@ -186,9 +186,23 @@ public class TwoDimensionalVector implements Comparable {
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof TwoDimensionalVector)
-            return ((TwoDimensionalVector) other).x == x && ((TwoDimensionalVector) other).y == y;
-        return false;
+        if (this == other) return true;
+        if (!(other instanceof TwoDimensionalVector)) return false;
+        TwoDimensionalVector vector = (TwoDimensionalVector) other;
+        return vector.x == x && vector.y == y;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * {@code equals} was overridden without a matching {@code hashCode}, so two value-equal vectors hashed to
+     * different buckets and could not be used as map keys (CODE_REVIEW §3.15).
+     */
+    @Override
+    public int hashCode() {
+        long bits = Double.doubleToLongBits(x);
+        bits = 31 * bits + Double.doubleToLongBits(y);
+        return (int) (bits ^ (bits >>> 32));
     }
 
     @Override

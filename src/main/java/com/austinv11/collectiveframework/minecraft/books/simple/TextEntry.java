@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 
 import com.austinv11.collectiveframework.minecraft.books.api.Entry;
@@ -31,8 +30,6 @@ public class TextEntry extends Entry {
      */
     public Alignment alignment = Alignment.LEFT;
     private String toRender;
-    @SideOnly(Side.CLIENT)
-    private FontRenderer renderer = Minecraft.getMinecraft().fontRenderer;
 
     public TextEntry(TwoDimensionalVector coords, int width, int height, String toRender) {
         this(coords, width, height);
@@ -46,15 +43,27 @@ public class TextEntry extends Entry {
     @SideOnly(Side.CLIENT)
     public List<String> fitString() {
         List<String> strings = new ArrayList<String>();
+        if (toRender == null) return strings;
         String[] lines = toRender.split("\n");
+        // The field initialiser used to call Minecraft.getMinecraft().fontRenderer, which NPE'd outside a client
+        // and went stale after a resource reload (CODE_REVIEW §2.25).
+        FontRenderer renderer = font();
+        if (renderer == null) {
+            for (String line : lines) strings.add(line);
+            return strings;
+        }
         for (String line : lines) {
             String currentString = "";
             String[] split = line.split(" ");
             for (String s : split) {
-                if (renderer.getStringWidth(currentString + " " + s) > width) {
+                if (currentString.isEmpty()) {
+                    currentString = s;
+                } else if (renderer.getStringWidth(currentString + " " + s) > width) {
                     strings.add(currentString);
                     currentString = s;
-                } else currentString = currentString + " " + s;
+                } else {
+                    currentString = currentString + " " + s;
+                }
             }
             strings.add(currentString);
         }
@@ -64,6 +73,8 @@ public class TextEntry extends Entry {
     @Override
     @SideOnly(Side.CLIENT)
     public void onRender(int dt) {
+        FontRenderer renderer = font();
+        if (renderer == null) return;
         List<String> lines = fitString();
         boolean unicode = renderer.getUnicodeFlag();
         renderer.setUnicodeFlag(useUnicodeFont);

@@ -22,27 +22,59 @@ public class CurseVersionChecker {
 
     private boolean didCheck = false;
 
+    private boolean failed = false;
+
     /**
      * @param curseId The project slug/id used in curseforge urls
      * @param name    The name of the file of the currently running version of the mod
      */
     public CurseVersionChecker(String curseId, String name) {
-        this.curseId = curseId;
-        this.name = name;
-        url = BASE_API_URL.replace("@MOD@", curseId);
+        this(curseId, name, BASE_API_URL);
     }
 
+    /**
+     * @param curseId The project slug/id used in curseforge urls
+     * @param name    The name of the file of the currently running version of the mod
+     * @param baseUrl The API url template, with {@code @MOD@} as the placeholder
+     */
+    CurseVersionChecker(String curseId, String name, String baseUrl) {
+        this.curseId = curseId;
+        this.name = name;
+        this.url = baseUrl.replace("@MOD@", curseId);
+    }
+
+    /**
+     * Fetches the update metadata once.
+     * <p>
+     * Every accessor used to dereference {@link #check} unconditionally, so any network failure turned into a
+     * {@link NullPointerException} in the caller (CODE_REVIEW §3.3). A failed or empty response now leaves
+     * {@link #check} null and {@link #failed} set, and the accessors report "unknown".
+     */
     private void doCheckIfNescessary() {
-        if (check == null) {
-            try {
-                Gson gson = new Gson();
-                String response = StringUtils.stringFromList(WebUtils.readURL(url));
-                check = gson.fromJson(response, CurseWidgetResponse.class);
-            } catch (Exception e) {
-                CollectiveFramework.LOGGER.error("A problem has occurred attempting to retrieve mod update info");
-                e.printStackTrace();
+        if (didCheck) return;
+        didCheck = true;
+        try {
+            String response = StringUtils.stringFromList(WebUtils.readURL(url));
+            CurseWidgetResponse parsed = new Gson().fromJson(response, CurseWidgetResponse.class);
+            if (parsed == null || parsed.download == null) {
+                failed = true;
+                CollectiveFramework.LOGGER.warn("Update metadata for " + curseId + " was empty or malformed");
+                return;
             }
+            check = parsed;
+        } catch (Exception e) {
+            failed = true;
+            CollectiveFramework.LOGGER.warn("A problem has occurred attempting to retrieve update info for " + curseId);
+            CollectiveFramework.LOGGER.debug(e);
         }
+    }
+
+    /**
+     * @return True if the metadata could not be fetched
+     */
+    public boolean isUnknown() {
+        doCheckIfNescessary();
+        return check == null;
     }
 
     /**
@@ -52,7 +84,8 @@ public class CurseVersionChecker {
      */
     public boolean isUpdateAvailable() {
         doCheckIfNescessary();
-        return !check.download.name.equals(name) && check.download.version.equals(MinecraftForge.MC_VERSION);
+        if (check == null) return false;
+        return !name.equals(check.download.name) && MinecraftForge.MC_VERSION.equals(check.download.version);
     }
 
     /**
@@ -62,6 +95,7 @@ public class CurseVersionChecker {
      */
     public String getDownloadUrl() {
         doCheckIfNescessary();
+        if (check == null) return null;
         return "http://minecraft.curseforge.com/mc-mods/" + curseId + "/files/" + check.download.id + "/download";
     }
 
@@ -72,7 +106,7 @@ public class CurseVersionChecker {
      */
     public String getUpdateFileName() {
         doCheckIfNescessary();
-        return check.download.name;
+        return check == null ? null : check.download.name;
     }
 
     /**
@@ -82,7 +116,7 @@ public class CurseVersionChecker {
      */
     public String getProjectUrl() {
         doCheckIfNescessary();
-        return check.project_url;
+        return check == null ? null : check.project_url;
     }
 
     private static class CurseWidgetResponse {

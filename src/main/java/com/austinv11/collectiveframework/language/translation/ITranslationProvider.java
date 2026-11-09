@@ -43,9 +43,9 @@ public interface ITranslationProvider {
 
     /**
      * Method to detect the language from a string, only used if canDetectLanguage() returns true
-     * 
+     *
      * @param text String to translate
      * @return The language
      */
-    public String detectLangauge(String text) throws IOException, QueryLimitException;
+    public String detectLangauge(String text) throws IOException, QueryLimitException, TranslationException;
 }

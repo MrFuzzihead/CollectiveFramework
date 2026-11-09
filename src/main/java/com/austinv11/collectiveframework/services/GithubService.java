@@ -1,10 +1,9 @@
 package com.austinv11.collectiveframework.services;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.austinv11.collectiveframework.utils.LogicUtils;
 import com.austinv11.collectiveframework.utils.StringUtils;
@@ -16,39 +15,55 @@ import com.google.gson.Gson;
  */
 public class GithubService {
 
+    /** GitHub rejects requests without a User-Agent. */
+    public static final String USER_AGENT = "CollectiveFramework";
+
+    /** Connect and read timeout for API calls, in milliseconds. */
+    public static final int TIMEOUT_MS = 10_000;
+
+    private static final org.apache.logging.log4j.Logger LOG = org.apache.logging.log4j.LogManager
+        .getLogger("CollectiveFramework");
+
+    /** The public GitHub API root. */
+    public static final String DEFAULT_API_BASE = "https://api.github.com";
+
     private final String user;
     private final String repo;
     private final String branch;
+    private final String apiBase;
 
     public GithubService(String user, String repo, String branch) {
+        this(user, repo, branch, DEFAULT_API_BASE);
+    }
+
+    /**
+     * @param user    The repository owner
+     * @param repo    The repository name
+     * @param branch  The branch to read from
+     * @param apiBase The API root; injectable so the class can be exercised against a local server
+     */
+    GithubService(String user, String repo, String branch, String apiBase) {
         this.user = user;
         this.repo = repo;
         this.branch = branch;
+        this.apiBase = apiBase;
     }
 
     /**
      * Instantiates with the branch as "master"
      */
     public GithubService(String user, String repo) {
-        this.user = user;
-        this.repo = repo;
-        branch = "master";
+        this(user, repo, "master");
     }
 
     public Release[] getReleases() {
         try {
-            URL input = new URL("https://api.github.com/repos/" + user + "/" + repo + "/releases");
-            HttpURLConnection connection = (HttpURLConnection) input.openConnection();
-            connection.setRequestMethod("GET");
-            InputStream stream = connection.getInputStream();
-            connection.connect();
-            String json = StringUtils.stringFromList(StringUtils.getStringsFromStream(stream));
-            Gson gson = new Gson();
-            return gson.fromJson(json, Release[].class);
+            Release[] releases = new Gson().fromJson(fetch(apiUrl("/releases")), Release[].class);
+            return releases == null ? new Release[0] : releases;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.warn("Unable to read releases for " + user + "/" + repo, e);
+            return new Release[0];
         }
-        return null; // This shouldn't be reached
     }
 
     /**
@@ -59,24 +74,25 @@ public class GithubService {
      */
     public String generateChangelog(String sha) {
         Commit[] commits = getCommitsToRepo(sha);
-        String log = "";
+        StringBuilder log = new StringBuilder();
         for (Commit commit : commits) {
+            if (commit == null || commit.commit == null || commit.commit.message == null) continue;
             String list;
-            String message = commit.commit.message.toLowerCase();
+            String message = commit.commit.message.toLowerCase(java.util.Locale.ROOT);
             if (LogicUtils.xor(message.contains("add"), message.contains("remov"))) {
                 if (message.contains("add")) list = "+";
                 else list = "-";
             } else list = "*";
-            log = log + list
-                + "\t"
-                + commit.commit.message.replaceFirst("\n", "")
-                + "("
-                + commit.commit.author.name
-                + " SHA:"
-                + commit.sha
-                + ")\n";
+            log.append(list)
+                .append('\t')
+                .append(commit.commit.message.replaceFirst("\n", ""))
+                .append('(')
+                .append(commit.commit.author == null ? "unknown" : commit.commit.author.name)
+                .append(" SHA:")
+                .append(commit.sha)
+                .append(")\n");
         }
-        return log;
+        return log.toString();
     }
 
     /**
@@ -95,20 +111,16 @@ public class GithubService {
      * @return The commits
      */
     public Commit[] getCommitsToRepo(String start) {
+        // `start` was ignored entirely: the request always asked for the branch, sent as a "sha" *header*
+        // rather than the query parameter the API documents (CODE_REVIEW §3.4).
+        String ref = start == null || start.isEmpty() ? branch : start;
         try {
-            URL input = new URL("https://api.github.com/repos/" + user + "/" + repo + "/commits");
-            HttpURLConnection connection = (HttpURLConnection) input.openConnection();
-            connection.setRequestMethod("GET");
-            connection.setRequestProperty("sha", branch);
-            InputStream stream = connection.getInputStream();
-            connection.connect();
-            String json = StringUtils.stringFromList(StringUtils.getStringsFromStream(stream));
-            Gson gson = new Gson();
-            return gson.fromJson(json, Commit[].class);
+            Commit[] commits = new Gson().fromJson(fetch(apiUrl("/commits?sha=" + encode(ref))), Commit[].class);
+            return commits == null ? new Commit[0] : commits;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.warn("Unable to read commits for " + user + "/" + repo, e);
+            return new Commit[0];
         }
-        return null; // This shouldn't be reached
     }
 
     /**
@@ -127,20 +139,39 @@ public class GithubService {
      * @return The commit
      */
     public Commit getCommitToRepo(String sha) {
+        if (sha == null || sha.isEmpty()) return null;
         try {
-            URL input = new URL("https://api.github.com/repos/" + user + "/" + repo + "/commits/" + sha);
-            HttpURLConnection connection = (HttpURLConnection) input.openConnection();
-            connection.setRequestMethod("GET");
-            connection.setRequestProperty("sha", branch);
-            InputStream stream = connection.getInputStream();
-            connection.connect();
-            String json = StringUtils.stringFromList(StringUtils.getStringsFromStream(stream));
-            Gson gson = new Gson();
-            return gson.fromJson(json, Commit.class);
+            return new Gson().fromJson(fetch(apiUrl("/commits/" + encode(sha))), Commit.class);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.warn("Unable to read commit " + sha + " of " + user + "/" + repo, e);
+            return null;
         }
-        return null; // This shouldn't be reached
+    }
+
+    private String apiUrl(String path) {
+        return apiBase + "/repos/" + user + "/" + repo + path;
+    }
+
+    private static String encode(String value) throws java.io.UnsupportedEncodingException {
+        return java.net.URLEncoder.encode(value, "UTF-8");
+    }
+
+    /**
+     * Performs a GET against the GitHub API.
+     * <p>
+     * GitHub rejects any request without a {@code User-Agent} with HTTP 403, and the previous implementation set
+     * none. {@link WebUtils#get} also applies connect and read timeouts and closes the stream on failure
+     * (CODE_REVIEW §3.4).
+     *
+     * @param url The absolute url
+     * @return The response body
+     * @throws IOException if the request fails
+     */
+    private String fetch(String url) throws IOException {
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("User-Agent", USER_AGENT);
+        headers.put("Accept", "application/vnd.github+json");
+        return StringUtils.stringFromList(WebUtils.get(url, TIMEOUT_MS, headers));
     }
 
     /**

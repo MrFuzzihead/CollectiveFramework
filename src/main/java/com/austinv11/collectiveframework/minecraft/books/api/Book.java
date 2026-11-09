@@ -2,6 +2,8 @@ package com.austinv11.collectiveframework.minecraft.books.api;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.entity.player.EntityPlayer;
@@ -10,6 +12,9 @@ import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.austinv11.collectiveframework.minecraft.books.core.GuiBook;
 import com.austinv11.collectiveframework.minecraft.books.core.ItemBook;
@@ -26,12 +31,24 @@ import cpw.mods.fml.relauncher.SideOnly;
  */
 public abstract class Book {
 
+    private static final Logger LOGGER = LogManager.getLogger("CollectiveFramework");
+
     /**
      * If this is true, a debug grid will be drawn atop the book
      */
     public boolean drawDebugLines = false;
-    private static final String GLOBAL_DIR = "./CFBookData/";
-    private static volatile NBTTagCompound globalData; // A buffer for file I/O
+    /** Directory holding {@link DataStorageType#GLOBAL} book data. */
+    public static final String GLOBAL_DIR = "./CFBookData/";
+
+    /**
+     * Cached GLOBAL data, keyed by storage file path.
+     * <p>
+     * This used to be a single static {@code NBTTagCompound}, so every GLOBAL book shared one buffer: opening
+     * two different books made them overwrite each other, and the file for the second book was never read at all
+     * (CODE_REVIEW §2.1). Keying by path fixes that while still avoiding a file read on every page turn.
+     */
+    private static final Map<String, NBTTagCompound> GLOBAL_CACHE = new ConcurrentHashMap<String, NBTTagCompound>();
+
     private int currentPage = 0;
     protected ItemBook bookItem;
     protected ItemStack bookStack;
@@ -70,17 +87,13 @@ public abstract class Book {
      */
     public NBTTagCompound getData(ItemStack stack) {
         if (getDataStorageType() == DataStorageType.GLOBAL) {
-            if (globalData == null) {
-                File storage = new File(
-                    GLOBAL_DIR + bookItem.getModId() + "/" + bookItem.getUnlocalizedName() + ".dat");
-                if (!storage.exists()) return new NBTTagCompound();
-                try {
-                    globalData = CompressedStreamTools.read(storage);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            File storage = getGlobalStorageFile();
+            NBTTagCompound cached = GLOBAL_CACHE.get(storage.getPath());
+            if (cached == null) {
+                cached = readGlobalData(storage);
+                GLOBAL_CACHE.put(storage.getPath(), cached);
             }
-            return (NBTTagCompound) globalData.copy();
+            return (NBTTagCompound) cached.copy();
         } else if (getDataStorageType() == DataStorageType.LOCAL) {
             String key = bookItem.getModId() + ":" + bookItem.getUnlocalizedName();
             NBTBase retrieved = LocalBookData.retrieveLocalData(key);
@@ -99,49 +112,114 @@ public abstract class Book {
      *              {@link DataStorageType#LOCAL}
      */
     public void setData(final NBTTagCompound data, final ItemStack stack) {
-        final NBTTagCompound tag = getData(stack);
         if (getDataStorageType() == DataStorageType.GLOBAL) {
-            globalData = data;
+            final File storage = getGlobalStorageFile();
+            final NBTTagCompound merged;
+            synchronized (GLOBAL_CACHE) {
+                NBTTagCompound cached = GLOBAL_CACHE.get(storage.getPath());
+                if (cached == null) cached = readGlobalData(storage);
+                merged = (NBTTagCompound) cached.copy();
+                merged.setTag(getOwnerKey(), data);
+                GLOBAL_CACHE.put(storage.getPath(), merged);
+            }
             new SimpleRunnable() { // Done to prevent speed bottlenecks from constant file modification
 
                 @Override
                 public void run() {
-                    tag.setTag(
-                        player.getGameProfile()
-                            .getId()
-                            .toString(),
-                        data);
-                    File storage = new File(
-                        GLOBAL_DIR + bookItem.getModId() + "/" + bookItem.getUnlocalizedName() + ".dat");
                     try {
-                        CompressedStreamTools.write(tag, storage);
+                        writeGlobalData(storage, merged);
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        LOGGER.warn("Unable to save GLOBAL book data to " + storage, e);
                     }
-                    this.disable(true);
                 }
 
                 @Override
                 public String getName() {
                     return "Book Data Serializer";
                 }
-            }.start();
+            }.startOnce();
         } else if (getDataStorageType() == DataStorageType.LOCAL) {
-            String key = bookItem.getModId() + ":" + bookItem.getUnlocalizedName();
-            tag.setTag(
-                player.getGameProfile()
-                    .getId()
-                    .toString(),
-                data);
-            LocalBookData.putLocalData(key, tag);
+            NBTTagCompound tag = getData(stack);
+            tag.setTag(getOwnerKey(), data);
+            LocalBookData.putLocalData(getBookStorageKey(), tag);
         } else {
-            tag.setTag(
-                player.getGameProfile()
-                    .getId()
-                    .toString(),
-                data);
+            NBTTagCompound tag = getData(stack);
+            tag.setTag(getOwnerKey(), data);
             NBTHelper.setTag(stack, "CFBookData", tag);
         }
+    }
+
+    /**
+     * The file a {@link DataStorageType#GLOBAL} book stores its data in.
+     *
+     * @return The storage file
+     */
+    protected File getGlobalStorageFile() {
+        return new File(GLOBAL_DIR + bookItem.getModId() + "/" + bookItem.getUnlocalizedName() + ".dat");
+    }
+
+    /**
+     * Key identifying this book type in {@link LocalBookData}.
+     *
+     * @return The storage key
+     */
+    protected String getBookStorageKey() {
+        return bookItem.getModId() + ":" + bookItem.getUnlocalizedName();
+    }
+
+    /**
+     * Key identifying the player whose data is being read or written. Falls back to a shared key when there is
+     * no player yet, instead of throwing an NPE from {@code player.getGameProfile()} (CODE_REVIEW §2.1).
+     *
+     * @return The owner key
+     */
+    protected String getOwnerKey() {
+        if (player == null) return "unowned";
+        if (player.getGameProfile() == null || player.getGameProfile()
+            .getId() == null) return "unowned";
+        return player.getGameProfile()
+            .getId()
+            .toString();
+    }
+
+    /**
+     * Reads a GLOBAL data file.
+     *
+     * @param storage The file
+     * @return The contents, or an empty compound if the file is missing or unreadable
+     */
+    protected NBTTagCompound readGlobalData(File storage) {
+        if (!storage.isFile()) return new NBTTagCompound();
+        try {
+            NBTTagCompound read = CompressedStreamTools.read(storage);
+            return read == null ? new NBTTagCompound() : read;
+        } catch (IOException e) {
+            LOGGER.warn("Unable to read GLOBAL book data from " + storage, e);
+            return new NBTTagCompound();
+        }
+    }
+
+    /**
+     * Writes a GLOBAL data file, creating the directory if needed. The directory was never created before, so
+     * every write failed with a swallowed {@code FileNotFoundException} (CODE_REVIEW §2.1).
+     *
+     * @param storage The file
+     * @param data    The data
+     * @throws IOException if the write fails
+     */
+    protected void writeGlobalData(File storage, NBTTagCompound data) throws IOException {
+        File parent = storage.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
+            throw new IOException("Unable to create directory " + parent);
+        }
+        CompressedStreamTools.write(data, storage);
+    }
+
+    /**
+     * Discards the GLOBAL data cache. Intended for tests.
+     */
+    public static void clearGlobalDataCache() {
+        GLOBAL_CACHE.clear();
     }
 
     /**
@@ -159,8 +237,15 @@ public abstract class Book {
      * @param newPage The new page
      */
     public void setPage(int newPage) {
-        if (newPage >= getPages().length) newPage = 0;
-        else if (newPage < 0) newPage = getPages().length;
+        Page[] pages = getPages();
+        if (pages.length == 0) {
+            // Nothing to page through; do not index an empty array.
+            return;
+        }
+        if (newPage >= pages.length) newPage = 0;
+        // This used to clamp to `pages.length`, which is one past the end, so paging backwards from the first
+        // page made GuiBook throw ArrayIndexOutOfBoundsException (CODE_REVIEW §1.20).
+        else if (newPage < 0) newPage = pages.length - 1;
         if (onPageFlip(currentPage, newPage)) {
             currentPage = newPage;
             NBTTagCompound data = getData(bookStack);

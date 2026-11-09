@@ -22,13 +22,13 @@ public class Keybindings {
     public static void init() {
         if (Config.enableButtonTimeChanging) {
             TIME_BACK = new KeyBinding(
-                "theframework.keybindings.timeBack",
+                "collectiveframework.keybindings.timeBack",
                 Keyboard.KEY_F8,
-                "theframework.keybindings.category");
+                "collectiveframework.keybindings.category");
             TIME_FORWARD = new KeyBinding(
-                "theframework.keybindings.timeForward",
+                "collectiveframework.keybindings.timeForward",
                 Keyboard.KEY_F9,
-                "theframework.keybindings.category");
+                "collectiveframework.keybindings.category");
 
             ClientRegistry.registerKeyBinding(TIME_BACK);
             ClientRegistry.registerKeyBinding(TIME_FORWARD);

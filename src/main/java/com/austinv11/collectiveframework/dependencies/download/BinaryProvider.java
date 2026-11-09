@@ -7,44 +7,55 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class BinaryProvider implements IDownloadProvider {
 
+    /** Connect and read timeout, in milliseconds. */
+    public static final int TIMEOUT_MS = 30_000;
+
+    private static final Logger LOG = LogManager.getLogger("CollectiveFramework");
+
     @Override
     public boolean downloadFile(String link, String downloadPath) {
+        if (link == null || downloadPath == null) throw new IllegalArgumentException("link and path required");
+        HttpURLConnection http = null;
         try {
-            URL url = new URL(link);
-            HttpURLConnection http = (HttpURLConnection) url.openConnection();
-            Map<String, List<String>> header = http.getHeaderFields();
-            while (isRedirected(header)) {
-                link = header.get("Location")
-                    .get(0);
-                url = new URL(link);
-                http = (HttpURLConnection) url.openConnection();
-                header = http.getHeaderFields();
+            http = (HttpURLConnection) new URL(link).openConnection();
+            http.setConnectTimeout(TIMEOUT_MS);
+            http.setReadTimeout(TIMEOUT_MS);
+            // Redirects are followed by the JDK. The hand-rolled loop read getHeaderFields() before the request
+            // was made, NPE'd when the status line was absent, had no limit, and only followed absolute
+            // Locations (CODE_REVIEW §3.4).
+            http.setInstanceFollowRedirects(true);
+
+            int status = http.getResponseCode();
+            if (status < 200 || status >= 300) {
+                LOG.warn("Download of " + link + " failed with HTTP " + status);
+                return false;
             }
-            InputStream input = http.getInputStream();
-            byte[] buffer = new byte[4096];
-            int n = -1;
-            OutputStream output = new FileOutputStream(new File(downloadPath));
-            while ((n = input.read(buffer)) != -1) {
-                output.write(buffer, 0, n);
+
+            File target = new File(downloadPath);
+            File parent = target.getParentFile();
+            if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
+                LOG.warn("Unable to create directory " + parent + " for " + downloadPath);
+                return false;
             }
-            output.close();
+
+            try (InputStream input = http.getInputStream(); OutputStream output = new FileOutputStream(target)) {
+                byte[] buffer = new byte[4096];
+                int n;
+                while ((n = input.read(buffer)) != -1) output.write(buffer, 0, n);
+            }
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.warn("Download of " + link + " failed", e);
+            return false;
+        } finally {
+            if (http != null) http.disconnect();
         }
-        return false;
-    }
-
-    private static boolean isRedirected(Map<String, List<String>> header) {
-        for (String hv : header.get(null)) {
-            if (hv.contains(" 301 ") || hv.contains(" 302 ")) return true;
-        }
-        return false;
     }
 
     @Override

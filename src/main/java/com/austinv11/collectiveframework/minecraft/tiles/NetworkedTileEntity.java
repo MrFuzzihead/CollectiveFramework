@@ -10,9 +10,14 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /**
- * Simple Tile Entity implementation which is networked
+ * Simple Tile Entity implementation which is networked.
+ * <p>
+ * It also implements {@link INBTSyncable}, so subclasses can be used with
+ * {@link com.austinv11.collectiveframework.minecraft.network.TileEntityServerUpdatePacket} and
+ * {@link com.austinv11.collectiveframework.minecraft.network.TileEntityClientUpdatePacket} without extra
+ * work.
  */
-public abstract class NetworkedTileEntity extends TileEntity {
+public abstract class NetworkedTileEntity extends TileEntity implements INBTSyncable {
 
     public NetworkedTileEntity() {
         super();
@@ -31,4 +36,25 @@ public abstract class NetworkedTileEntity extends TileEntity {
         readFromNBT(pkt.func_148857_g());
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Position and registry id are stripped: they belong to the world, and sending them would let a forged
+     * payload relocate this tile entity (CODE_REVIEW §1.17).
+     */
+    @Override
+    public NBTTagCompound writeSyncData() {
+        NBTTagCompound tag = new NBTTagCompound();
+        writeToNBT(tag);
+        tag.removeTag("x");
+        tag.removeTag("y");
+        tag.removeTag("z");
+        tag.removeTag("id");
+        return tag;
+    }
+
+    @Override
+    public void readSyncData(NBTTagCompound data) {
+        INBTSyncable.readFromNbtKeepingPosition(this, data);
+    }
 }

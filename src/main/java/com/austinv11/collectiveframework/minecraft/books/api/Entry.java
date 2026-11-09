@@ -1,6 +1,7 @@
 package com.austinv11.collectiveframework.minecraft.books.api;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.util.MathHelper;
 
@@ -38,8 +39,26 @@ public abstract class Entry extends GuiScreen {
         this.coords = coords;
         this.width = width;
         this.height = height;
-        this.mc = Minecraft.getMinecraft();
-        this.fontRendererObj = Minecraft.getMinecraft().fontRenderer;
+        // Minecraft.getMinecraft() is null outside a client, so the old pair of calls threw an NPE rather than
+        // leaving the entry merely unusable (CODE_REVIEW §2.25).
+        Minecraft minecraft = Minecraft.getMinecraft();
+        this.mc = minecraft;
+        this.fontRendererObj = minecraft == null ? null : minecraft.fontRenderer;
+    }
+
+    /**
+     * The font renderer to draw with.
+     * <p>
+     * {@code GuiScreen#fontRendererObj} is captured once at construction, and Minecraft replaces the instance on
+     * an F3+T resource reload, so drawing with the captured one after a reload used a stale renderer
+     * (CODE_REVIEW §2.25).
+     *
+     * @return The live renderer, the captured one as a fallback, or null outside a client
+     */
+    protected FontRenderer font() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft != null && minecraft.fontRenderer != null) return minecraft.fontRenderer;
+        return fontRendererObj;
     }
 
     /**

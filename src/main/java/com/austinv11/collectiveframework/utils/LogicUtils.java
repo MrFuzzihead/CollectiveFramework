@@ -77,17 +77,11 @@ public class LogicUtils {
      * @return Output
      */
     public static boolean xor(boolean... bools) {
-        boolean didOr = false;
-        boolean total = false;
-        for (boolean bool : bools) {
-            if (total && bool) {
-                if (didOr) return false;
-            } else {
-                total = total || bool;
-                didOr = true;
-            }
-        }
-        return total;
+        // True when an odd number of inputs are true. The previous two-input short circuit returned false for
+        // xor(true, true, true) (CODE_REVIEW §2.16).
+        boolean odd = false;
+        for (boolean bool : bools) if (bool) odd = !odd;
+        return odd;
     }
 
     /**
