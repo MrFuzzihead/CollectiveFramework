@@ -52,6 +52,7 @@ public class ConfigRegistry {
      * @throws ConfigException
      */
     public static void registerConfig(Object config) throws ConfigException {
+        if (config == null) throw new ConfigException("Cannot register a null config!");
         if (!config.getClass()
             .isAnnotationPresent(Config.class))
             throw new ConfigException("Config " + config.toString() + " does not contain a Config annotation!");
@@ -140,7 +141,7 @@ public class ConfigRegistry {
     public static ArrayList<IConfigElement> getCategories(Object configObject, String modid) throws ConfigException {
         ArrayList<IConfigElement> categories = new ArrayList<>();
         for (ConfigProxy proxy : configs) {
-            if (proxy.config.equals(configObject)) try {
+            if (proxy.isFor(configObject)) try {
                 categories.addAll(proxy.handler.getCategories(configObject, modid));
             } catch (IllegalAccessException | ConfigException e) {
                 throw new ConfigException(e);
@@ -156,7 +157,7 @@ public class ConfigRegistry {
      * @param entries entries to parse and save
      */
     public static void onGuiClosed(Object config, List<GuiConfigEntries.IConfigEntry> entries) throws ConfigException {
-        for (ConfigProxy proxy : configs) if (proxy.config.equals(config)) proxy.handler.onGuiClosed(config, entries);
+        for (ConfigProxy proxy : configs) if (proxy.isFor(config)) proxy.handler.onGuiClosed(config, entries);
     }
 
     /**
@@ -167,7 +168,7 @@ public class ConfigRegistry {
      */
     public static String getFilePath(Object config) {
         for (ConfigProxy proxy : configs)
-            if (proxy.config.equals(config)) return new File("./config/" + proxy.fileName).getAbsolutePath();
+            if (proxy.isFor(config)) return new File("./config/" + proxy.fileName).getAbsolutePath();
         return null;
     }
 
@@ -225,13 +226,19 @@ public class ConfigRegistry {
 
         @Override
         public Object getValue(String configValue, String category, Object config) {
-            if (hasValue(configValue, category)) {
-                if (current.containsKey(category) && current.get(category)
-                    .containsKey(configValue))
-                    return current.get(category)
-                        .get(configValue);
+            if (!hasValue(configValue, category)) return null;
+            Field field = current.get(category)
+                .get(configValue);
+            try {
+                field.setAccessible(true);
+                // Returns the value held by the field, not the java.lang.reflect.Field itself
+                // (CODE_REVIEW §1.4).
+                return field.get(config);
+            } catch (IllegalAccessException e) {
+                CollectiveFramework.LOGGER
+                    .warn("Unable to read config value " + category + "." + configValue + ": " + e.getMessage());
+                return null;
             }
-            return null;
         }
 
         @Override
@@ -381,7 +388,11 @@ public class ConfigRegistry {
 
         private void writeToStream(PrintStream writer, Object config) throws IllegalAccessException, ConfigException {
             for (String category : current.keySet()) {
-                int i = 0;
+                // The block is only opened once a field is actually written, and is always closed again.
+                // Previously the closing brace was emitted only when the loop reached i == size, so a category
+                // whose last field was skipped (clientSideOnly on a dedicated server) produced an unterminated
+                // block and an unparseable file (CODE_REVIEW §1.5).
+                boolean opened = false;
                 for (String field : current.get(category)
                     .keySet()) {
                     Field f = current.get(category)
@@ -389,16 +400,17 @@ public class ConfigRegistry {
                     f.setAccessible(true);
                     if (f.isAnnotationPresent(Description.class) && f.getAnnotation(Description.class)
                         .clientSideOnly() && CollectiveFramework.proxy.getSide() == Side.SERVER) continue;
-                    if (i == 0) writer.println(category + " {");
+                    if (!opened) {
+                        writer.println(category + " {");
+                        opened = true;
+                    }
                     String comment = f.isAnnotationPresent(Description.class) ? f.getAnnotation(Description.class)
                         .comment() : "None! Tell the mod author to include a comment!";
                     writer.println("\t# " + comment);
                     writer.println("\t" + getKey(f.get(config)) + ":" + field + "=" + serialize(f.get(config)));
                     writer.println();
-                    i++;
-                    if (i == current.get(category)
-                        .size()) writer.println("}");
                 }
+                if (opened) writer.println("}");
             }
             writer.flush();
             writer.close();
@@ -509,6 +521,18 @@ public class ConfigRegistry {
             }
         }
 
+        /**
+         * Whether this proxy manages the given config object. Instances are matched by class, not by
+         * identity: {@code CollectiveFramework} registers one instance while the config GUI hands over
+         * another, and identity comparison silently produced an empty config screen (CODE_REVIEW §1.2).
+         *
+         * @param configObject The config object to test
+         * @return True if this proxy manages that config
+         */
+        public boolean isFor(Object configObject) {
+            return configObject != null && (config == configObject || config.getClass() == configObject.getClass());
+        }
+
         private void addToCategory(String category, Field f) {
             Map<String, Field> vals;
             if (fields.containsKey(category)) vals = fields.get(category);
@@ -535,9 +559,28 @@ public class ConfigRegistry {
                     CollectiveFramework.LOGGER.error("There was an error reverting the config!");
                     return;
                 }
-                proxy.handler.loadFile(event.config, proxy.config, proxy.fields);
+                proxy.handler.loadFile(proxy.fileName, proxy.config, proxy.fields);
             }
         }
+    }
+
+    /**
+     * Reloads every synced config from its local file, discarding values that were pushed by a server.
+     * <p>
+     * Called on the client when it disconnects, so a server's config values do not leak into the next world or
+     * into single player. Only configs registered with {@code doesSync = true} are touched.
+     *
+     * @return The number of configs that were reloaded
+     */
+    public static int revertSyncedConfigs() {
+        int reverted = 0;
+        for (ConfigProxy proxy : configs) {
+            if (!proxy.doesSync) continue;
+            CollectiveFramework.LOGGER.info("Reverting synced config '" + proxy.fileName + "' from disk");
+            proxy.handler.loadFile(proxy.fileName, proxy.config, proxy.fields);
+            reverted++;
+        }
+        return reverted;
     }
 
     private static ConfigProxy findConfigProxyForConfigFile(List<ConfigProxy> proxies, String filename) {

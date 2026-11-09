@@ -27,6 +27,7 @@ import com.austinv11.collectiveframework.minecraft.utils.client.GuiUtils;
 import com.austinv11.collectiveframework.utils.TimeProfiler;
 import com.austinv11.collectiveframework.utils.math.TwoDimensionalVector;
 
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.InputEvent;
 import cpw.mods.fml.relauncher.Side;
@@ -42,7 +43,6 @@ public class GuiBook extends GuiScreen {
     private EntityPlayer player;
 
     public GuiBook(EntityPlayer player) {
-        MinecraftForge.EVENT_BUS.register(this);
         ItemStack heldItem = player.getHeldItem();
         if (heldItem == null || !(heldItem.getItem() instanceof ItemBook)) {
             GuiUtils.closeCurrentGui();
@@ -64,6 +64,15 @@ public class GuiBook extends GuiScreen {
         }
         book.handoffGui(this);
         this.player = player;
+
+        // Registered only once the book exists, so a failed construction cannot leave a half-built, still-
+        // subscribed listener behind (CODE_REVIEW §2.18).
+        // MouseEvent is a Forge event, InputEvent is an FML event: they live on different buses (CODE_REVIEW
+        // §1.1).
+        MinecraftForge.EVENT_BUS.register(this);
+        FMLCommonHandler.instance()
+            .bus()
+            .register(this);
     }
 
     @Override
@@ -259,8 +268,11 @@ public class GuiBook extends GuiScreen {
 
     @Override
     public void onGuiClosed() {
-        book.onClose();
+        if (book != null) book.onClose();
         MinecraftForge.EVENT_BUS.unregister(this);
+        FMLCommonHandler.instance()
+            .bus()
+            .unregister(this);
     }
 
     @Override

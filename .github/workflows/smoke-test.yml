@@ -1,0 +1,86 @@
+name: Headless smoke tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ master, main ]
+  push:
+    branches: [ master, main ]
+
+permissions:
+  contents: read
+
+jobs:
+  server-smoke:
+    name: Dedicated server boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Accept EULA
+        run: |
+          mkdir -p run/server
+          echo "eula=true" > run/server/eula.txt
+
+      - name: Boot server and verify FML load complete
+        run: |
+          set -o pipefail
+          timeout 900 ./gradlew runServer25 -PsmokeTest --console=plain --no-configuration-cache 2>&1 | tee server-smoke.log
+
+      - name: Check server smoke-test markers
+        if: always()
+        run: |
+          grep -q "Done (" server-smoke.log
+          grep -q "COLLECTIVEFRAMEWORK_SMOKE_TEST_OK" server-smoke.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-smoke-log
+          path: server-smoke.log
+          if-no-files-found: ignore
+
+  game-test:
+    name: In-game game tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Accept EULA
+        run: |
+          mkdir -p run/server
+          echo "eula=true" > run/server/eula.txt
+
+      - name: Run in-game game tests
+        run: |
+          set -o pipefail
+          timeout 900 ./gradlew gameTestServer --console=plain --no-configuration-cache 2>&1 | tee game-test.log
+
+      - name: Check game-test markers
+        if: always()
+        run: |
+          grep -q "GAMETEST_ASSERTIONS_OK" game-test.log
+          grep -q "COLLECTIVEFRAMEWORK_GAMETEST_OK" game-test.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: game-test-log
+          path: game-test.log
+          if-no-files-found: ignore

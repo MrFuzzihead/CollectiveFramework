@@ -47,3 +47,29 @@ austinv11 for the original [Collective Framework]
 [CollectiveFramework]: https://github.com/austinv11/CollectiveFramework
 [CurseForge]: https://minecraft.curseforge.com/projects/the-framework
 [maven repo]: https://bintray.com/rolandoislas/The-Framework/TheFramework
+
+## Building
+
+```
+./gradlew build
+```
+
+## Testing
+
+This project ships three layers of automated checks, wired into `./gradlew check` and CI.
+
+| Layer | Command | What it covers |
+|---|---|---|
+| Unit tests (JUnit 4 + Mockito) | `./gradlew test` | Pure-logic code: config (de)serialisation, the INI file round trip, array/string/math/geometry utilities, reflection helpers, encryption helpers |
+| Coverage gate (JaCoCo) | `./gradlew jacocoTestReport` / `jacocoTestCoverageVerification` | HTML report in `build/reports/jacoco/test/html/index.html`; `check` fails if line or branch coverage drops below the floor in `addon.gradle.kts` |
+| In-game tests (`gameTest` source set) | `./gradlew gameTestServer` | Boots a real dedicated server, asserts config registration/serialisation, NBT helpers, tile-entity inventories and colour codes from inside the game, then exits with a status code |
+| Server smoke test | `./gradlew runServer25 -PsmokeTest` | Boots a real dedicated server, logs `COLLECTIVEFRAMEWORK_SMOKE_TEST_OK` once FML finished loading, then exits |
+
+The `gameTest` source set and `src/test` are never included in the published jar.
+
+### Known-defect tests
+
+`CODE_REVIEW.md` documents the defects found in this codebase. Each one that can be expressed as an
+assertion has a matching **`@Ignore`d** test (or a `knownDefect(...)` check in the in-game test) that
+states the *correct* behaviour and names the review section. To fix a defect: implement the fix,
+delete the `@Ignore`, and the test becomes the regression guard.

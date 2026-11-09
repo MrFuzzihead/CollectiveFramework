@@ -13,6 +13,7 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 
 import com.austinv11.collectiveframework.language.TranslationManager;
 import com.austinv11.collectiveframework.language.translation.TranslationException;
+import com.austinv11.collectiveframework.language.translation.YandexProvider;
 import com.austinv11.collectiveframework.minecraft.reference.Config;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -37,11 +38,23 @@ public class MinecraftTranslator {
      * @throws IOException
      */
     public static String translate(String text, String toLang) throws IOException, TranslationException {
+        syncApiKey();
         if (StatCollector.canTranslate(text)) {
             return StatCollector.translateToLocal(text);
         }
         String toTranslate = StatCollector.translateToFallback(text);
         return TranslationManager.translate(toTranslate, toLang);
+    }
+
+    /**
+     * Pushes the {@code yandexApiKey} config option into {@link YandexProvider}.
+     * <p>
+     * Done lazily on every call rather than once at startup so that editing the key in the config GUI, or
+     * receiving a synced config from a server, takes effect without a restart. The framework does not ship an
+     * API key; without this the translation options cannot work at all (CODE_REVIEW §1.18).
+     */
+    private static void syncApiKey() {
+        YandexProvider.setApiKey(Config.yandexApiKey);
     }
 
     /**
@@ -56,6 +69,7 @@ public class MinecraftTranslator {
      */
     public static String translate(String text, String fromLang, String toLang)
         throws TranslationException, IOException {
+        syncApiKey();
         if (StatCollector.canTranslate(text)) {
             return StatCollector.translateToLocal(text);
         }

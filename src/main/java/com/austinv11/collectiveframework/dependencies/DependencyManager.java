@@ -2,14 +2,18 @@ package com.austinv11.collectiveframework.dependencies;
 
 import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.austinv11.collectiveframework.dependencies.download.BinaryProvider;
 import com.austinv11.collectiveframework.dependencies.download.FileType;
@@ -23,9 +27,11 @@ import com.austinv11.collectiveframework.multithreading.SimpleRunnable;
  */
 public class DependencyManager {
 
-    private static final List<IDownloadProvider> providers = new ArrayList<IDownloadProvider>();
+    private static final Logger LOG = LogManager.getLogger("CollectiveFramework");
 
-    private static volatile int numOfDownloaders = 0;
+    private static final List<IDownloadProvider> providers = new CopyOnWriteArrayList<IDownloadProvider>();
+
+    private static final AtomicInteger numOfDownloaders = new AtomicInteger();
 
     static {
         registerDownloadProvider(new PlainTextProvider());
@@ -38,20 +44,34 @@ public class DependencyManager {
      * @param provider The download provider
      */
     public static void registerDownloadProvider(IDownloadProvider provider) {
+        if (provider == null) throw new IllegalArgumentException("provider must not be null");
         providers.add(provider);
     }
 
     /**
-     * Attempts to load the specified library (must be a proper java archive!)
+     * Removes every registered download provider. Intended for tests.
+     */
+    public static void clearDownloadProviders() {
+        providers.clear();
+    }
+
+    /**
+     * Does nothing.
      *
      * @param file The file representing the library
-     * @throws MalformedURLException
+     * @throws MalformedURLException never thrown; declared for source compatibility
+     * @deprecated This used to build a {@link URLClassLoader} and immediately discard it, which loaded nothing
+     *             and leaked the loader. Adding a jar to a new class loader cannot make it visible to the loader
+     *             that is already running the mod. Use
+     *             {@link com.austinv11.collectiveframework.minecraft.utils.MinecraftDependencyManager#loadLibrary(File)}
+     *             instead, which adds the jar to FML's {@code ModClassLoader}. Kept as a logging no-op so that
+     *             existing callers do not start throwing (CODE_REVIEW §3.5).
      */
+    @Deprecated
     public static void loadLibrary(File file) throws MalformedURLException {
-        URLClassLoader loader = new URLClassLoader(
-            new URL[] { file.toURI()
-                .toURL() },
-            DependencyManager.class.getClassLoader());
+        LOG.warn(
+            "DependencyManager.loadLibrary({}) does nothing; use MinecraftDependencyManager.loadLibrary instead",
+            file);
     }
 
     /**
@@ -65,14 +85,29 @@ public class DependencyManager {
      */
     public static boolean downloadFile(String url, String downloadPath, FileType fileToDownload)
         throws NoProviderFoundException {
-        IDownloadProvider provider = null;
-        for (IDownloadProvider p : providers) for (FileType t : p.getCapabilities()) if (t.toString()
-            .equals(fileToDownload.toString())) {
-                provider = p;
-                break;
+        return findProvider(fileToDownload).downloadFile(url, downloadPath);
+    }
+
+    /**
+     * Finds the highest-priority provider that can handle the given file type.
+     * <p>
+     * The old code set {@code provider} inside a doubly nested loop and only broke the inner one, so the
+     * <em>last</em> matching provider won rather than the first (CODE_REVIEW §3.6).
+     *
+     * @param fileToDownload The file type to look for
+     * @return The provider
+     * @throws NoProviderFoundException if no registered provider handles the type
+     */
+    private static IDownloadProvider findProvider(FileType fileToDownload) throws NoProviderFoundException {
+        if (fileToDownload == null) throw new IllegalArgumentException("fileToDownload must not be null");
+        String wanted = fileToDownload.toString();
+        for (IDownloadProvider provider : providers) {
+            for (FileType capability : provider.getCapabilities()) {
+                if (capability.toString()
+                    .equals(wanted)) return provider;
             }
-        if (provider == null) throw new NoProviderFoundException(fileToDownload);
-        return provider.downloadFile(url, downloadPath);
+        }
+        throw new NoProviderFoundException(fileToDownload);
     }
 
     /**
@@ -86,30 +121,31 @@ public class DependencyManager {
      */
     public static Future<Boolean> downloadFileAsync(String url, String downloadPath, FileType fileToDownload)
         throws NoProviderFoundException {
-        IDownloadProvider provider = null;
-        for (IDownloadProvider p : providers) for (FileType t : p.getCapabilities()) if (t.toString()
-            .equals(fileToDownload.toString())) {
-                provider = p;
-                break;
-            }
-        if (provider == null) throw new NoProviderFoundException(fileToDownload);
-        return new DownloadFuture(url, downloadPath, provider);
+        return new DownloadFuture(url, downloadPath, findProvider(fileToDownload));
     }
 
     protected static class DownloadFuture implements Future<Boolean> {
 
         public DownloadRunnable runnable;
-        private boolean isCancelled = false;
+        private volatile boolean isCancelled = false;
 
         protected DownloadFuture(String url, String downloadPath, IDownloadProvider provider) {
             runnable = new DownloadRunnable(url, downloadPath, provider);
-            runnable.start();
         }
 
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
-            runnable.disable(true);
+            if (isCancelled) return true;
             isCancelled = true;
+            // Idempotent: a second cancel() used to throw IllegalThreadStateException from disable().
+            try {
+                runnable.disable(true);
+            } catch (IllegalThreadStateException alreadyCleaned) {
+                // Nothing left to cancel.
+            }
+            // Release anyone blocked in get() rather than leaving them to wait for a download that will not
+            // report its result.
+            runnable.done.countDown();
             return true;
         }
 
@@ -120,45 +156,66 @@ public class DependencyManager {
 
         @Override
         public boolean isDone() {
-            return runnable.isDone;
+            return runnable.done.getCount() == 0;
         }
 
+        /**
+         * Waits for the download to finish.
+         * <p>
+         * This used to return {@code runnable.didDownload} immediately, so a caller always saw {@code false}
+         * unless it happened to poll after the download had completed (CODE_REVIEW §3.7).
+         */
         @Override
-        public Boolean get() throws InterruptedException, ExecutionException {
+        public Boolean get() throws InterruptedException {
+            runnable.done.await();
+            if (isCancelled) throw new CancellationException("download was cancelled");
             return runnable.didDownload;
         }
 
         @Override
-        public Boolean get(long timeout, TimeUnit unit)
-            throws InterruptedException, ExecutionException, TimeoutException {
+        public Boolean get(long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+            if (!runnable.done.await(timeout, unit)) {
+                throw new TimeoutException("download did not finish within " + timeout + " " + unit);
+            }
+            if (isCancelled) throw new CancellationException("download was cancelled");
             return runnable.didDownload;
         }
 
         protected static class DownloadRunnable extends SimpleRunnable {
 
-            public boolean isDone = false;
-            public boolean didDownload = false;
+            public volatile boolean isDone = false;
+            public volatile boolean didDownload = false;
+            /** Released when {@link #run()} returns, whatever the outcome. */
+            final CountDownLatch done = new CountDownLatch(1);
 
-            private String url, downloadPath;
-            private IDownloadProvider provider;
-            private int downloadNum;
+            private final String url, downloadPath;
+            private final IDownloadProvider provider;
+            private final int downloadNum;
 
             public DownloadRunnable(String url, String downloadPath, IDownloadProvider provider) {
                 this.url = url;
                 this.downloadPath = downloadPath;
                 this.provider = provider;
-                downloadNum = numOfDownloaders++;
+                this.downloadNum = numOfDownloaders.incrementAndGet();
+                // Fire and forget: run() is invoked exactly once.
+                startOnce();
             }
 
             @Override
             public void run() {
-                didDownload = provider.downloadFile(url, downloadPath);
-                isDone = true;
+                try {
+                    didDownload = provider.downloadFile(url, downloadPath);
+                } finally {
+                    isDone = true;
+                    // Always release the waiter, even if the provider threw.
+                    done.countDown();
+                }
             }
 
             @Override
             public String getName() {
-                return "CollectiveFramework Downloader #" + numOfDownloaders;
+                // Used to read the static counter, so every downloader shared the last thread's name.
+                return "CollectiveFramework Downloader #" + downloadNum;
             }
         }
     }

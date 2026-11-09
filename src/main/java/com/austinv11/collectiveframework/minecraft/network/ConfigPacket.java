@@ -5,6 +5,7 @@ import net.minecraftforge.common.MinecraftForge;
 
 import com.austinv11.collectiveframework.minecraft.config.ConfigLoadEvent;
 import com.austinv11.collectiveframework.minecraft.config.ConfigRegistry;
+import com.austinv11.collectiveframework.minecraft.threading.MainThread;
 
 import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
@@ -49,18 +50,29 @@ public class ConfigPacket implements IMessage {
 
         @Override
         public IMessage onMessage(ConfigPacket message, MessageContext ctx) {
-            ConfigLoadEvent.Pre event = new ConfigLoadEvent.Pre();
-            event.configName = message.configName;
-            event.config = message.config;
-            event.isRevert = message.isRevert;
-            if (!MinecraftForge.EVENT_BUS.post(event)) {
-                ConfigRegistry.onConfigReload(event);
-                ConfigLoadEvent.Post newEvent = new ConfigLoadEvent.Post();
-                newEvent.configName = event.configName;
-                newEvent.config = event.config;
-                newEvent.isRevert = event.isRevert;
-                MinecraftForge.EVENT_BUS.post(newEvent);
-            }
+            // Config reloads mutate static fields and touch the config files, so they belong on the client
+            // thread rather than the netty event loop (CODE_REVIEW §3.1).
+            final String configName = message.configName;
+            final String config = message.config;
+            final boolean isRevert = message.isRevert;
+            MainThread.scheduleOnClient(new Runnable() {
+
+                @Override
+                public void run() {
+                    ConfigLoadEvent.Pre event = new ConfigLoadEvent.Pre();
+                    event.configName = configName;
+                    event.config = config;
+                    event.isRevert = isRevert;
+                    if (!MinecraftForge.EVENT_BUS.post(event)) {
+                        ConfigRegistry.onConfigReload(event);
+                        ConfigLoadEvent.Post newEvent = new ConfigLoadEvent.Post();
+                        newEvent.configName = event.configName;
+                        newEvent.config = event.config;
+                        newEvent.isRevert = event.isRevert;
+                        MinecraftForge.EVENT_BUS.post(newEvent);
+                    }
+                }
+            });
             return null;
         }
     }

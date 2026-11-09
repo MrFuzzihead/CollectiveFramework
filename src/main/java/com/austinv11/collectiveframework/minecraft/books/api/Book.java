@@ -118,14 +118,13 @@ public abstract class Book {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    this.disable(true);
                 }
 
                 @Override
                 public String getName() {
                     return "Book Data Serializer";
                 }
-            }.start();
+            }.startOnce();
         } else if (getDataStorageType() == DataStorageType.LOCAL) {
             String key = bookItem.getModId() + ":" + bookItem.getUnlocalizedName();
             tag.setTag(
