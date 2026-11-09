@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -104,6 +105,87 @@ public class ConfigRegistry {
     public static String getKey(Object o) {
         for (IConfigProxy proxy : proxies) if (proxy.canSerializeObject(o)) return proxy.getKey(o);
         return "@NULL@";
+    }
+
+    /**
+     * Discovers the config fields of a class, grouped by category and sorted by name.
+     * <p>
+     * Shared by {@link ConfigProxy} and {@link DefaultConfigurationHandler#convertToString(Object)}: the latter
+     * used to serialise nothing at all unless {@code loadFile} had already populated its field map, so
+     * {@link ConfigLoadEvent.Init} carried an empty config string (CODE_REVIEW §1.6).
+     *
+     * @param type       The config class
+     * @param config     The config instance
+     * @param annotation The config annotation
+     * @return Category name to (field name to field)
+     */
+    static TreeMap<String, Map<String, Field>> discoverFields(Class<?> type, Object config, Config annotation) {
+        TreeMap<String, Map<String, Field>> fields = new TreeMap<String, Map<String, Field>>();
+        collectFields(fields, type, config, annotation, new ArrayList<String>());
+        return fields;
+    }
+
+    /**
+     * Registers every usable config field on the class and its superclasses.
+     * <p>
+     * The previous implementation walked {@code getDeclaredFields()} and {@code getFields()} with no filter, so
+     * compiler-generated fields (a synthetic {@code $jacocoData}, {@code this$0}, {@code $assertionsDisabled})
+     * and {@code static final} constants became config entries - and a {@code static final} field cannot be
+     * assigned at all. It also missed {@code private} superclass fields (CODE_REVIEW §3.18).
+     *
+     * @param fields     The map to fill
+     * @param type       The class to inspect
+     * @param config     The config instance
+     * @param annotation The config annotation
+     * @param visited    Names already registered, so a subclass field shadows its superclass namesake
+     */
+    private static void collectFields(TreeMap<String, Map<String, Field>> fields, Class<?> type, Object config,
+        Config annotation, List<String> visited) {
+        if (type == null || type == Object.class) return;
+        collectFields(fields, type.getSuperclass(), config, annotation, visited);
+
+        for (Field f : type.getDeclaredFields()) {
+            if (f.isSynthetic()) continue;
+            // A static final field cannot be written, and a non-static final field cannot be either.
+            if (Modifier.isFinal(f.getModifiers())) continue;
+            if (ArrayUtils.indexOf(annotation.exclude(), f.getName()) != -1) continue;
+            if (visited.contains(f.getName())) continue;
+            if (!isSerializable(config, f)) {
+                CollectiveFramework.LOGGER.warn(
+                    "Config field " + type.getName() + "." + f.getName() + " has no registered type proxy; ignoring");
+                continue;
+            }
+            visited.add(f.getName());
+            String category = f.isAnnotationPresent(Description.class) ? f.getAnnotation(Description.class)
+                .category() : "General";
+            Map<String, Field> categoryFields = fields.get(category);
+            if (categoryFields == null) {
+                categoryFields = new TreeMap<String, Field>();
+                fields.put(category, categoryFields);
+            }
+            categoryFields.put(f.getName(), f);
+        }
+    }
+
+    private static boolean isSerializable(Object config, Field f) {
+        try {
+            f.setAccessible(true);
+            return ConfigRegistry.canSerialize(f.get(config));
+        } catch (IllegalAccessException | RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Whether any registered proxy can handle the given value.
+     *
+     * @param o The value
+     * @return True if the value can be serialized
+     */
+    public static boolean canSerialize(Object o) {
+        if (o == null) return false;
+        for (IConfigProxy proxy : proxies) if (proxy.canSerializeObject(o)) return true;
+        return false;
     }
 
     /**
@@ -284,7 +366,7 @@ public class ConfigRegistry {
         public String convertToString(Object config) {
             ByteArrayOutputStream stream = new ByteArrayOutputStream();
             try {
-                writeToStream(new PrintStream(stream), config);
+                writeToStream(new PrintStream(stream), config, fieldsFor(config));
                 return stream.toString();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -386,16 +468,31 @@ public class ConfigRegistry {
             }
         }
 
-        private void writeToStream(PrintStream writer, Object config) throws IllegalAccessException, ConfigException {
-            for (String category : current.keySet()) {
+        /**
+         * The field map to write. Falls back to discovering it from the config class when {@link #loadFile} has
+         * not run yet, which is the case for {@link ConfigLoadEvent.Init} and for
+         * {@code CollectiveFramework#onServerJoin} (CODE_REVIEW §1.6).
+         */
+        private Map<String, Map<String, Field>> fieldsFor(Object config) {
+            if (!current.isEmpty()) return current;
+            if (config == null) return current;
+            Config annotation = config.getClass()
+                .getAnnotation(Config.class);
+            if (annotation == null) return current;
+            return ConfigRegistry.discoverFields(config.getClass(), config, annotation);
+        }
+
+        private void writeToStream(PrintStream writer, Object config, Map<String, Map<String, Field>> fields)
+            throws IllegalAccessException, ConfigException {
+            for (String category : fields.keySet()) {
                 // The block is only opened once a field is actually written, and is always closed again.
                 // Previously the closing brace was emitted only when the loop reached i == size, so a category
                 // whose last field was skipped (clientSideOnly on a dedicated server) produced an unterminated
                 // block and an unparseable file (CODE_REVIEW §1.5).
                 boolean opened = false;
-                for (String field : current.get(category)
+                for (String field : fields.get(category)
                     .keySet()) {
-                    Field f = current.get(category)
+                    Field f = fields.get(category)
                         .get(field);
                     f.setAccessible(true);
                     if (f.isAnnotationPresent(Description.class) && f.getAnnotation(Description.class)
@@ -418,7 +515,7 @@ public class ConfigRegistry {
 
         private void writeFile(File file, Object config) throws IOException, IllegalAccessException, ConfigException {
             PrintStream writer = new PrintStream(file);
-            writeToStream(writer, config);
+            writeToStream(writer, config, fieldsFor(config));
         }
 
         private void readFile(File file, Object config)
@@ -432,46 +529,84 @@ public class ConfigRegistry {
             }
         }
 
-        private void readFromReader(BufferedReader reader, Object config) throws IOException, IllegalAccessException {
+        /**
+         * Parses the config file format written by {@link #writeToStream(PrintStream, Object)}:
+         * 
+         * <pre>
+         * Category {
+         *     # comment
+         *     Type:field=value
+         *
+         * }
+         * </pre>
+         * 
+         * The previous implementation was a three-state line counter that assumed exactly one comment line, one
+         * entry line and one blank line per field. Any deviation - a hand edit, a multi-line comment, a value
+         * containing {@code =}, or a field skipped while writing - silently dropped every following value
+         * (CODE_REVIEW §1.6). This walks the structure explicitly and reports what it cannot parse.
+         */
+        private void readFromReader(BufferedReader reader, Object config) throws IOException {
+            String category = null;
             String line;
-            boolean reachedBracket = false;
-            int lineCount = 0;
+            int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
-                if (!reachedBracket && line.contains("{")) {
-                    reachedBracket = true;
-                    continue;
-                }
-                if (reachedBracket && line.equals("}")) {
-                    reachedBracket = false;
-                    continue;
-                }
-                if (reachedBracket) {
-                    if (lineCount < 1) {
-                        lineCount++;
-                    } else if (lineCount == 1) {
-                        if (line.trim()
-                            .startsWith("#")) // Ignore comments
-                            continue;
-                        String field = line.substring(line.indexOf(":") + 1, line.indexOf("="));
-                        String key = line.substring(0, line.indexOf(":"))
-                            .replace("\t", "")
-                            .trim();
-                        line = line.substring(line.indexOf("=") + 1);
-                        Field f = ReflectionUtils.getDeclaredOrNormalField(field, config.getClass());
-                        if (f != null) {
-                            try {
-                                f.setAccessible(true);
-                                f.set(config, deserialize(key, line));
-                            } catch (ConfigException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        lineCount++;
-                    } else {
-                        lineCount = 0;
+                lineNumber++;
+                String trimmed = line.trim();
+                if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+
+                if (category == null) {
+                    if (!trimmed.endsWith("{")) {
+                        warn("line " + lineNumber + ": expected a category header, found '" + trimmed + "'");
+                        continue;
                     }
+                    category = trimmed.substring(0, trimmed.length() - 1)
+                        .trim();
+                    if (category.isEmpty()) {
+                        warn("line " + lineNumber + ": empty category name");
+                        category = null;
+                    }
+                    continue;
+                }
+
+                if (trimmed.equals("}")) {
+                    category = null;
+                    continue;
+                }
+
+                int colon = trimmed.indexOf(':');
+                int equals = trimmed.indexOf('=');
+                if (colon < 0 || equals < 0 || colon > equals) {
+                    warn("line " + lineNumber + ": expected 'Type:field=value', found '" + trimmed + "'");
+                    continue;
+                }
+
+                String typeKey = trimmed.substring(0, colon)
+                    .trim();
+                String fieldName = trimmed.substring(colon + 1, equals)
+                    .trim();
+                // Deliberately not trimmed: leading spaces after '=' may be part of a String value.
+                String rawValue = trimmed.substring(equals + 1);
+
+                Field field = ReflectionUtils.getDeclaredOrNormalField(fieldName, config.getClass());
+                if (field == null) {
+                    warn("line " + lineNumber + ": no field named '" + fieldName + "' in " + category);
+                    continue;
+                }
+                try {
+                    Object value = deserialize(typeKey, rawValue);
+                    field.setAccessible(true);
+                    field.set(config, value);
+                } catch (ConfigException e) {
+                    warn("line " + lineNumber + ": " + e.getMessage() + " (keeping the default)");
+                } catch (IllegalAccessException | IllegalArgumentException e) {
+                    warn("line " + lineNumber + ": cannot assign '" + rawValue + "' to " + fieldName + ": " + e);
                 }
             }
+            if (category != null) warn("unterminated category '" + category + "'");
+        }
+
+        private static void warn(String message) {
+            CollectiveFramework.LOGGER.warn("Config parse: " + message);
         }
     }
 
@@ -495,30 +630,7 @@ public class ConfigRegistry {
                     : annotation.fileName();
             this.doesSync = annotation.doesSync();
 
-            Field[] declared = config.getClass()
-                .getDeclaredFields();
-            for (Field f : declared) {
-                f.setAccessible(true);
-                if (ArrayUtils.indexOf(annotation.exclude(), f.getName()) == -1) {
-                    if (f.isAnnotationPresent(Description.class)) addToCategory(
-                        f.getAnnotation(Description.class)
-                            .category(),
-                        f);
-                    else addToCategory("General", f);
-                }
-            }
-
-            Field[] field = config.getClass()
-                .getFields();
-            for (Field f : field) {
-                f.setAccessible(true);
-                if (ArrayUtils.indexOf(annotation.exclude(), f.getName()) == -1)
-                    if (f.isAnnotationPresent(Description.class)) addToCategory(
-                        f.getAnnotation(Description.class)
-                            .category(),
-                        f);
-                    else addToCategory("General", f);
-            }
+            this.fields = ConfigRegistry.discoverFields(config.getClass(), config, annotation);
         }
 
         /**
@@ -531,14 +643,6 @@ public class ConfigRegistry {
          */
         public boolean isFor(Object configObject) {
             return configObject != null && (config == configObject || config.getClass() == configObject.getClass());
-        }
-
-        private void addToCategory(String category, Field f) {
-            Map<String, Field> vals;
-            if (fields.containsKey(category)) vals = fields.get(category);
-            else vals = new TreeMap<String, Field>();
-            vals.put(f.getName(), f);
-            fields.put(category, vals);
         }
     }
 

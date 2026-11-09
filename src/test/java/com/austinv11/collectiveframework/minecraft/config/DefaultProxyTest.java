@@ -5,13 +5,19 @@ import java.util.Arrays;
 import net.minecraftforge.common.config.Property;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * {@link DefaultProxy} is the only {@link IConfigProxy} that ships with the framework, so its round trip is
  * what every config value goes through. Requires Forge on the test classpath (for {@link Property.Type}),
  * but no running game.
+ * <p>
+ * CODE_REVIEW §2.8 - {@code deserialize} used to swallow {@link IllegalArgumentException} and hand back the raw
+ * string, so a caller that assigned the result to a typed field blew up later with an unchecked
+ * {@link IllegalArgumentException} instead of a {@link ConfigException}.
+ * <p>
+ * CODE_REVIEW §2.9 - array elements were joined with unescaped commas (so {@code ["a,b", "c"]} came back as
+ * three elements) and an empty array came back as a single empty element.
  */
 public class DefaultProxyTest {
 
@@ -35,9 +41,10 @@ public class DefaultProxyTest {
     }
 
     @Test
-    public void cannotSerializeArbitraryObjects() {
+    public void cannotSerializeArbitraryObjectsOrNull() {
         Assert.assertFalse(proxy.canSerializeObject(new Object()));
         Assert.assertFalse(proxy.canSerializeObject(Arrays.asList("a")));
+        Assert.assertFalse(proxy.canSerializeObject(null));
     }
 
     // ------------------------------------------------------------------ isKeyUsable
@@ -49,6 +56,7 @@ public class DefaultProxyTest {
         Assert.assertTrue(proxy.isKeyUsable("String"));
         Assert.assertTrue(proxy.isKeyUsable("Integer Array"));
         Assert.assertFalse(proxy.isKeyUsable("SomethingElse"));
+        Assert.assertFalse(proxy.isKeyUsable(null));
     }
 
     // ---------------------------------------------------------------------- getKey
@@ -130,57 +138,106 @@ public class DefaultProxyTest {
             0d);
     }
 
-    // ---------------------------------------------------------------- known defects
-
-    /**
-     * CODE_REVIEW §2.9 - an empty array serialises to {@code []}, which deserialises back as a one-element
-     * array containing the empty string.
-     */
-    @Ignore("CODE_REVIEW §2.9: empty arrays round-trip as a single empty element")
+    /** CODE_REVIEW §2.9 (fixed) - an empty array used to come back as one element holding the empty string. */
     @Test
     public void emptyArrayRoundTrip() throws Exception {
         String serialised = proxy.serialize(new int[0]);
+        Assert.assertEquals("[]", serialised);
         Assert.assertArrayEquals(new int[0], (int[]) proxy.deserialize("Integer Array", serialised));
     }
 
-    /**
-     * CODE_REVIEW §2.9 - array elements are joined with commas and never escaped, so any element containing a
-     * comma is split in two.
-     */
-    @Ignore("CODE_REVIEW §2.9: array serialisation does not escape commas")
+    /** CODE_REVIEW §2.9 (fixed) - elements were joined with unescaped commas. */
     @Test
     public void stringArrayRoundTripWithCommas() throws Exception {
         String serialised = proxy.serialize(new String[] { "a,b", "c" });
         Assert.assertArrayEquals(new String[] { "a,b", "c" }, (String[]) proxy.deserialize("String Array", serialised));
     }
 
+    @Test
+    public void arrayElementEndingWithABracketRoundTrips() throws Exception {
+        String[] value = { "a]", "b" };
+        String serialised = proxy.serialize(value);
+        Assert.assertArrayEquals(value, (String[]) proxy.deserialize("String Array", serialised));
+    }
+
     /**
-     * CODE_REVIEW §2.8 - {@code deserialize} swallows {@link IllegalArgumentException} and returns the raw
-     * string, so a caller that assigns the result to a typed field blows up later with an unchecked
-     * {@link IllegalArgumentException} instead of a {@link ConfigException} here.
+     * Known limitation of the bracketed-comma format: an array holding exactly one empty string and an empty
+     * array both serialise to {@code []}. Pinned so a change is a deliberate decision.
      */
-    @Ignore("CODE_REVIEW §2.8: type errors are swallowed and returned as a String")
+    @Test
+    public void anArrayOfOneEmptyStringIsIndistinguishableFromAnEmptyArray() throws Exception {
+        Assert.assertEquals("[]", proxy.serialize(new String[] { "" }));
+        Assert.assertEquals(0, ((String[]) proxy.deserialize("String Array", "[]")).length);
+    }
+
+    // ---------------------------------------------------------------------- §2.9 escaping
+
+    @Test
+    public void scalarRoundTripWithSpecialCharacters() throws Exception {
+        String value = "a,b]c\\d\ne\tf";
+        String serialised = proxy.serialize(value);
+        Assert.assertEquals(value, proxy.deserialize("String", serialised));
+    }
+
+    @Test
+    public void scalarWithANewlineStaysOnOneLine() throws Exception {
+        String serialised = proxy.serialize("line one\nline two");
+        Assert.assertFalse("a serialised value must not contain a real newline", serialised.contains("\n"));
+        Assert.assertEquals("line one\nline two", proxy.deserialize("String", serialised));
+    }
+
+    /**
+     * A value written by an older version - a Windows path, say - must still read back unchanged: an
+     * unrecognised escape sequence is kept verbatim rather than mangled.
+     */
+    @Test
+    public void legacyBackslashesArePreserved() throws Exception {
+        Assert.assertEquals("C:\\data\\file", proxy.deserialize("String", "C:\\data\\file"));
+    }
+
+    // --------------------------------------------------------------------- §2.8 errors
+
     @Test(expected = ConfigException.class)
-    public void deserializeShouldRejectMalformedValues() throws Exception {
+    public void deserializeRejectsMalformedValues() throws Exception {
         proxy.deserialize("Integer", "not-a-number");
     }
 
-    /**
-     * CODE_REVIEW §2.8 - locked-in description of today's behaviour: malformed input comes back as the
-     * untouched string rather than as an error.
-     */
-    @Test
-    public void deserializeCurrentlyReturnsTheRawStringOnTypeErrors() throws Exception {
-        Assert.assertEquals("not-a-number", proxy.deserialize("Integer", "not-a-number"));
+    @Test(expected = ConfigException.class)
+    public void deserializeRejectsAnUnusableKey() throws Exception {
+        proxy.deserialize("NotAType", "whatever");
     }
 
-    /**
-     * CODE_REVIEW §2.9 - {@code deserializeUnSafe} indexes {@code toCharArray()[0]} for characters, so an
-     * empty value throws.
-     */
-    @Ignore("CODE_REVIEW §2.9: empty character values throw AIOOBE")
+    @Test(expected = ConfigException.class)
+    public void deserializeRejectsNull() throws Exception {
+        proxy.deserialize("Integer", null);
+    }
+
+    @Test(expected = ConfigException.class)
+    public void deserializeRejectsAnUnbracketedArray() throws Exception {
+        proxy.deserialize("Integer Array", "1,2,3");
+    }
+
+    @Test(expected = ConfigException.class)
+    public void deserializeRejectsAMismatchedArrayElement() throws Exception {
+        proxy.deserialize("Integer Array", "[1,two,3]");
+    }
+
+    /** CODE_REVIEW §2.9 (fixed) - an empty character used to throw AIOOBE from {@code toCharArray()[0]}. */
+    @Test(expected = ConfigException.class)
+    public void emptyCharacterValueReportsACleanError() throws Exception {
+        proxy.deserialize("Character", "");
+    }
+
     @Test
-    public void emptyCharacterValueShouldNotThrow() throws Exception {
-        Assert.assertNull(proxy.deserialize("Character", ""));
+    public void serializingAnUnsupportedObjectReportsACleanError() {
+        try {
+            proxy.serialize(new Object());
+            Assert.fail("expected ConfigException");
+        } catch (ConfigException expected) {
+            Assert.assertTrue(
+                expected.getMessage(),
+                expected.getMessage()
+                    .contains("Cannot serialize"));
+        }
     }
 }

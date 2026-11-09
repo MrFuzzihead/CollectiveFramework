@@ -27,11 +27,11 @@ Java 17+).
 | **Dead code** | ~25 items | Including 4 stale resource files and 4 stale lang keys |
 | **Perf** | 14 | One is a per-frame disk read |
 
-**Fix progress: 34 of 70 closed.** Batch 1 (§1.1, §1.2, §1.3, §1.4, §1.5, §1.18, plus §2.18 and the
+**Fix progress: 38 of 70 closed.** Batch 1 (§1.1, §1.2, §1.3, §1.4, §1.5, §1.18, plus §2.18 and the
 `ITranslationProvider` signature), batch 2 (§1.7, §1.16, §1.17, plus the `fromBytes` half of §3.2),
 batch 3 (§1.8, §1.9, §3.12), batch 4 (§1.11–§1.15, plus the `SimpleRunnable` half of §3.15),
-batch 5 (§3.1, §3.5–§3.8) and batch 6 (§1.20, §2.1, §2.2, §2.19, §2.20, §5.1) are implemented and
-covered by tests — see §11.
+batch 5 (§3.1, §3.5–§3.8), batch 6 (§1.20, §2.1, §2.2, §2.19, §2.20, §5.1) and batch 7 (§1.6,
+§2.8, §2.9, §3.18) are implemented and covered by tests — see §11.
 
 The single highest-leverage fix is **#1 (event bus)** — it silently disables config sync, the time
 buttons, the key overlay, and book interactivity in one shot. Second is **#2/#3 (config
@@ -1462,8 +1462,8 @@ game.
 |---|---|
 | `addon.gradle.kts` | JaCoCo wiring, coverage floors, `gameTest` source set, `gameTestServer` task, `-PsmokeTest` hook |
 | `dependencies.gradle` | JUnit 4.13.2, Mockito 4.11.0 (`core` + `inline`) |
-| `src/test/java/**` | 374 unit tests (340 active, 34 `@Ignore`d known defects) |
-| `src/gameTest/java/**` | `GameTestMod` — 71 in-game assertions, booted by `gameTestServer` |
+| `src/test/java/**` | 405 unit tests (376 active, 29 `@Ignore`d known defects) |
+| `src/gameTest/java/**` | `GameTestMod` — 73 in-game assertions, booted by `gameTestServer` |
 | `src/main/java/.../SmokeTestHook.java` | CI-only: exits the JVM with a marker once FML finished loading |
 | `.github/workflows/smoke-test.yml` | server smoke test + in-game game test on every PR |
 
@@ -1482,15 +1482,15 @@ Both extra source sets are excluded from the published jar.
 
 ### 10.3 Coverage baseline
 
-Measured after batch 6 (§11):
+Measured after batch 7 (§11):
 
 | Counter | Covered / Total | Ratio | Floor |
 |---|---|---|---|
-| Instruction | 7,300 / 17,201 | 42.4% | — |
-| Branch | 755 / 1,772 | 42.6% | 41% |
-| **Line** | 1,291 / 3,379 | **38.2%** | **37%** |
-| Complexity | 682 / 1,680 | 40.6% | — |
-| Method | 368 / 792 | 46.5% | — |
+| Instruction | 7,801 / 17,790 | 43.9% | — |
+| Branch | 822 / 1,857 | 44.3% | 43% |
+| **Line** | 1,396 / 3,500 | **39.9%** | **39%** |
+| Complexity | 724 / 1,738 | 41.7% | — |
+| Method | 381 / 803 | 47.4% | — |
 | Class | 59 / 129 | 45.7% | — |
 
 Per package: `multithreading` **85.8% line / 77.3% branch**, `language` **96.9% line**, `minecraft/threading`
@@ -1846,13 +1846,55 @@ untested GL changes is worse than leaving two documented findings open.
 Unit tests: 349 → **374** (340 active, 34 `@Ignore`d). Coverage: 36.3% → **38.2%** line, 42.6% branch;
 the line floor was raised to 37%.
 
+### Batch 7 — the config parser and field discovery
+
+The last cluster with a data-corruption class of bug. Unlike the review's original suggestion, the
+on-disk format was **kept** so existing config files keep working; only the internals were replaced.
+
+| Review ref | Defect | Fix |
+|---|---|---|
+| **§1.6** | `readFromReader` was a three-state line counter that assumed exactly one comment line, one entry line and one blank line per field inside a `Category { }` block. A hand edit, a multi-line comment, a value containing `=`, or a field skipped while writing silently dropped every following value — with no logging and no validation | Rewritten as an explicit structural parser: category headers, `}` closers, `#` comments (whole-line only, so a `#` inside a value is safe), and `Type:field=value` split on the **first** `:` and `=` so values may contain either. Every unparseable line, unknown field and type mismatch is logged with its line number and the default is kept, so one bad entry no longer costs the rest of the file |
+| **§2.8** | `DefaultProxy#deserialize` caught `IllegalArgumentException` and returned the raw string, so a caller that assigned the result to a typed field blew up later with an unchecked `IllegalArgumentException` instead of a `ConfigException` | Malformed values, unusable keys, `null`, unbracketed arrays, mismatched array elements and empty characters all throw `ConfigException` with a message that names the value and the expected type |
+| **§2.9** | Array elements were joined with unescaped commas, so `["a,b", "c"]` came back as three elements; an empty array came back as one element holding the empty string; a `String` containing a newline broke the file | Small backslash escape (`\\`, `\n`, `\r`, `\t`, plus `,` and `]` inside array elements) with a matching unescaper. Arrays are now required to be bracketed and are split on *unescaped* commas; `[]` yields a zero-length array. An unrecognised escape sequence is kept verbatim, so a value written by an older version — a Windows path, say — still reads back unchanged |
+| **§3.18** | `ConfigProxy` walked `getDeclaredFields()` and `getFields()` with no filter, so compiler-generated fields (`$jacocoData`, `this$0`, `$assertionsDisabled`) and `static final` constants became config entries — and a `static final` field cannot be assigned at all. `private` superclass fields were missed | Discovery moved to `ConfigRegistry.discoverFields(...)`, which skips synthetic and `final` fields, walks the superclass chain (subclass fields shadow their superclass namesakes), and drops any field no registered `IConfigProxy` can serialise, with a warning |
+| — | `convertToString` serialised nothing unless `loadFile` had already populated the handler's field map, so `ConfigLoadEvent.Init` carried an **empty** config string and `CollectiveFramework#onServerJoin` would have synced nothing | `writeToStream` takes the field map as a parameter; `convertToString` falls back to `discoverFields(...)` when the map is empty |
+
+**Format compatibility**
+
+The file format is byte-for-byte unchanged for values without special characters, so existing
+`collectiveframework.cfg` files load exactly as before. Values containing a backslash, newline or (in an
+array) a comma are now escaped — those were the values that used to be corrupted, so there is nothing to
+migrate.
+
+**API changes**
+
+* New: `ConfigRegistry.canSerialize(Object)`, `ConfigRegistry.discoverFields(Class, Object, Config)`
+  (package-private), `DefaultProxy#deserializeUnSafe` now throws rather than falling back.
+* `DefaultProxy#deserialize` no longer returns the raw string on failure. This is the point of §2.8, but
+  a caller that relied on the old lenient behaviour will now see a `ConfigException`.
+* `ConfigProxy#addToCategory` is gone (discovery is centralised); it was private.
+
+**Tests added** — 31 new unit tests plus 2 in-game checks:
+
+| Test | Coverage |
+|---|---|
+| `ConfigParserTest` (21) | well-formed files, CRLF, any indentation, extra spaces in a header; **§1.6**: no comments, multiple comment lines, no blank lines, a value containing `=` / `:` / a leading `#`, an empty string, an empty array, a stray header, trailing garbage; unknown fields, malformed lines, a type mismatch keeping the default and not stopping later entries, an unterminated block, an empty document, comments outside a block; and a **write→read fixed point** including `a=b, c#d` and `["x,y", "z]"]` |
+| `DefaultProxyTest` (26, was 14) | the §2.8/§2.9 `@Ignore`s are gone; added escaping round trips (`\\`, newline, tab, `,`, `]`), a newline never reaching the file, an element ending with `]`, the documented `[""]`/`[]` ambiguity, legacy backslashes, and six error cases |
+| `ConfigProxyTest` | the §3.18 `@Ignore` is gone — synthetic and `final` fields are filtered |
+| `GameTestMod` (+2) | a `String` containing `, ] = #` survives a round trip, and an empty array round-trips, in the real game environment |
+
+Unit tests: 374 → **405** (376 active, 29 `@Ignore`d). Coverage: 38.2% → **39.9%** line, 42.6% →
+**44.3%** branch; floors raised to 39% / 43%.
+
 ### Remaining batches
 
-Still open: the config parser replacement (§1.6/§2.8/§2.9/§3.18 — §1.5 is fixed but the parser
-is still fragile), the HTTP and `FileUtils` robustness items (§3.4, §3.9), the geometry and `MathUtils`
+Still open: the HTTP and `FileUtils` robustness items (§3.4, §3.9), the geometry and `MathUtils`
 correctness items (§2.10–§2.16, §3.13, §3.14), `Entry extends GuiScreen` (§2.23–§2.25), the
 remaining performance items in §5, and the dead-code cleanup in §4.
 
 Two book-API items were deliberately left out of batch 6 because they cannot be verified without a GL
 context, so they would be untested changes: `ImageEntry`'s scaling pivot (§2.23) and making `Entry` a
 plain object instead of a `GuiScreen` (§2.24). Both need a client-side visual check.
+
+The geometry/`MathUtils` cluster is now the largest remaining group of pure-logic defects and is entirely
+unit-testable, so it is the natural next batch.

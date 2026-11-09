@@ -413,6 +413,12 @@ public class GameTestMod {
                 new int[] { 1, 2, 3 },
                 (int[]) ConfigRegistry.deserialize("Integer Array", ConfigRegistry.serialize(new int[] { 1, 2, 3 }))));
         check(
+            "ConfigRegistry round trips a String containing delimiters (CODE_REVIEW §2.9)",
+            "a,b]c=d#e".equals(ConfigRegistry.deserialize("String", ConfigRegistry.serialize("a,b]c=d#e"))));
+        check(
+            "ConfigRegistry round trips an empty array (CODE_REVIEW §2.9)",
+            ((int[]) ConfigRegistry.deserialize("Integer Array", ConfigRegistry.serialize(new int[0]))).length == 0);
+        check(
             "getForgeConfigType maps Integer to INTEGER",
             "INTEGER".equals(
                 ConfigRegistry.getForgeConfigType(Integer.valueOf(1))

@@ -119,11 +119,9 @@ public class ConfigProxyTest {
     }
 
     /**
-     * CODE_REVIEW §3.18 - {@code ConfigProxy} walks {@code getDeclaredFields()} with no static/synthetic
-     * filter, so compiler-generated fields (e.g. {@code $assertionsDisabled}, {@code this$0}) would be
-     * registered as config entries.
+     * CODE_REVIEW §3.18 (fixed) - {@code ConfigProxy} used to walk {@code getDeclaredFields()} with no filter,
+     * so compiler-generated fields and {@code static final} constants became config entries.
      */
-    @org.junit.Ignore("CODE_REVIEW §3.18: synthetic and non-config static fields are not filtered")
     @Test
     public void syntheticFieldsShouldBeIgnored() throws Exception {
         ConfigRegistry.ConfigProxy proxy = proxyFor(ExplicitlyNamedConfig.class, new ExplicitlyNamedConfig());
